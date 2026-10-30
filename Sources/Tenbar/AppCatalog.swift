@@ -12,7 +12,8 @@ struct InstalledApp: Identifiable, Hashable {
 @MainActor
 final class AppCatalog: ObservableObject {
     @Published private(set) var apps: [InstalledApp] = []
-    @Published private(set) var pins: PinList
+    @Published private(set) var taskbarPins: PinList
+    @Published private(set) var startPins: PinList
     @Published var statusMessage = ""
     @Published var combineMode: CombineMode {
         didSet { preferences.combineMode = combineMode }
@@ -22,11 +23,20 @@ final class AppCatalog: ObservableObject {
     private var isScanning = false
     private var iconCache: [String: NSImage] = [:]
 
-    static let preferredPins = ["com.apple.finder", "com.apple.Safari", "com.apple.mail", "com.apple.iCal", "com.apple.Notes"]
+    static func preferredPins(_ location: PinLocation) -> [String] {
+        switch location {
+        case .taskbar:
+            ["com.apple.finder", "com.apple.Safari", "com.apple.mail"]
+        case .start:
+            ["com.apple.mail", "com.apple.iCal", "com.apple.Notes", "com.apple.Photos",
+             "com.apple.Music", "com.apple.AppStore", "com.apple.systempreferences"]
+        }
+    }
 
     init(preferences: Preferences = Preferences()) {
         self.preferences = preferences
-        self.pins = preferences.pins ?? PinList()
+        self.taskbarPins = preferences.pins(.taskbar) ?? PinList()
+        self.startPins = preferences.pins(.start) ?? PinList()
         self.combineMode = preferences.combineMode
     }
 
@@ -34,9 +44,9 @@ final class AppCatalog: ObservableObject {
         apps.first { $0.id == id }
     }
 
-    var pinnedApps: [InstalledApp] {
+    var startPinnedApps: [InstalledApp] {
         let byID = Dictionary(apps.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return pins.ids.compactMap { byID[$0] }
+        return startPins.ids.compactMap { byID[$0] }
     }
 
     func rescan() {
@@ -45,9 +55,9 @@ final class AppCatalog: ObservableObject {
         Task {
             let records = await Task.detached(priority: .utility) { AppScanner.scan() }.value
             apps = records.map(InstalledApp.init(record:))
-            if preferences.pins == nil {
-                pins = PinList.defaults(available: records.map(\.id), preferred: Self.preferredPins)
-                preferences.pins = pins
+            for location in PinLocation.allCases where preferences.pins(location) == nil {
+                let defaults = PinList.defaults(available: records.map(\.id), preferred: Self.preferredPins(location))
+                setPins(defaults, location)
             }
             isScanning = false
         }
@@ -60,19 +70,29 @@ final class AppCatalog: ObservableObject {
         return icon
     }
 
-    func isPinned(_ app: InstalledApp) -> Bool { pins.contains(app.id) }
+    func pins(_ location: PinLocation) -> PinList {
+        switch location {
+        case .taskbar: taskbarPins
+        case .start: startPins
+        }
+    }
 
-    func togglePin(_ app: InstalledApp) { updatePins { $0.toggle(app.id) } }
+    func isPinned(_ appID: String, to location: PinLocation) -> Bool {
+        pins(location).contains(appID)
+    }
 
-    func pin(appID: String) { updatePins { $0.pin(appID) } }
+    func togglePin(_ appID: String, _ location: PinLocation) {
+        var updated = pins(location)
+        updated.toggle(appID)
+        setPins(updated, location)
+    }
 
-    func unpin(appID: String) { updatePins { $0.unpin(appID) } }
-
-    private func updatePins(_ change: (inout PinList) -> Void) {
-        var updated = pins
-        change(&updated)
-        pins = updated
-        preferences.pins = updated
+    private func setPins(_ pins: PinList, _ location: PinLocation) {
+        switch location {
+        case .taskbar: taskbarPins = pins
+        case .start: startPins = pins
+        }
+        preferences.setPins(pins, location)
     }
 
     func launch(_ app: InstalledApp) {

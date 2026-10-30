@@ -64,7 +64,7 @@ struct StartMenuView: View {
             sectionTitle("Angeheftet")
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 6)], spacing: 6) {
-                    ForEach(catalog.pinnedApps) { app in tile(app) }
+                    ForEach(catalog.startPinnedApps) { app in tile(app) }
                 }
                 .padding(.horizontal, 12)
             }
@@ -87,13 +87,13 @@ struct StartMenuView: View {
                 Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 24, height: 24)
                 Text(app.name).font(.system(size: 12)).lineLimit(1)
                 Spacer(minLength: 0)
-                if catalog.isPinned(app) {
+                if catalog.isPinned(app.id, to: .start) {
                     Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.white.opacity(0.5))
                 }
             }
             .padding(.horizontal, 12).frame(height: 34)
         }
-        .contextMenu { pinToggle(app) }
+        .contextMenu { pinMenu(app) }
     }
 
     private func tile(_ app: InstalledApp) -> some View {
@@ -104,12 +104,17 @@ struct StartMenuView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 72)
         }
-        .contextMenu { pinToggle(app) }
+        .contextMenu { pinMenu(app) }
     }
 
     @ViewBuilder
-    private func pinToggle(_ app: InstalledApp) -> some View {
-        Button(catalog.isPinned(app) ? "Lösen" : "Anheften") { catalog.togglePin(app) }
+    private func pinMenu(_ app: InstalledApp) -> some View {
+        Button(catalog.isPinned(app.id, to: .start) ? "Von Start lösen" : "An Start anheften") {
+            catalog.togglePin(app.id, .start)
+        }
+        Button(catalog.isPinned(app.id, to: .taskbar) ? "Von Taskleiste lösen" : "An Taskleiste anheften") {
+            catalog.togglePin(app.id, .taskbar)
+        }
     }
 
     private func launch(_ app: InstalledApp) {

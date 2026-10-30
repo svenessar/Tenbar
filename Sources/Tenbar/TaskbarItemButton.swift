@@ -86,10 +86,9 @@ struct TaskbarItemButton: View {
     private var menu: some View {
         Button("\(appName) öffnen") { catalog.launch(appKey: item.appKey, fallbackName: appName) }
         if !item.appKey.hasPrefix("pid-") {
-            if catalog.pins.contains(item.appKey) {
-                Button("Von Taskleiste lösen") { catalog.unpin(appID: item.appKey) }
-            } else {
-                Button("An Taskleiste anheften") { catalog.pin(appID: item.appKey) }
+            let pinned = catalog.isPinned(item.appKey, to: .taskbar)
+            Button(pinned ? "Von Taskleiste lösen" : "An Taskleiste anheften") {
+                catalog.togglePin(item.appKey, .taskbar)
             }
         }
         if let first = windows.first {

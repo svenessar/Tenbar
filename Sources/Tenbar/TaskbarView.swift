@@ -51,7 +51,7 @@ struct TaskbarView: View {
     private func items(for windows: [TaskWindow]) -> [TaskbarItem<UUID>] {
         let running = Set(windows.map(\.appKey))
         // Hide pins whose app is neither installed (catalog not scanned yet / app removed) nor running.
-        let pinned = catalog.pins.ids.filter { running.contains($0) || catalog.app(id: $0) != nil }
+        let pinned = catalog.taskbarPins.ids.filter { running.contains($0) || catalog.app(id: $0) != nil }
         return TaskbarLayout.items(
             pinnedAppKeys: pinned,
             windows: windows.map { (id: $0.id, appKey: $0.appKey) },

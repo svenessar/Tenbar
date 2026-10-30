@@ -64,11 +64,36 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
         let preferences = Preferences(defaults: defaults)
 
-        #expect(preferences.pins == nil)
-        preferences.pins = PinList()
-        #expect(preferences.pins == PinList())
-        preferences.pins = PinList(["a", "b"])
-        #expect(preferences.pins?.ids == ["a", "b"])
+        #expect(preferences.pins(.taskbar) == nil)
+        preferences.setPins(PinList(), .taskbar)
+        #expect(preferences.pins(.taskbar) == PinList())
+        preferences.setPins(PinList(["a", "b"]), .taskbar)
+        #expect(preferences.pins(.taskbar)?.ids == ["a", "b"])
+    }
+
+    @Test func taskbarAndStartPinsAreIndependent() throws {
+        let suite = "TenbarTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = Preferences(defaults: defaults)
+
+        preferences.setPins(PinList(["finder"]), .taskbar)
+        #expect(preferences.pins(.start) == nil)
+        preferences.setPins(PinList(["mail", "notes"]), .start)
+        #expect(preferences.pins(.taskbar)?.ids == ["finder"])
+        #expect(preferences.pins(.start)?.ids == ["mail", "notes"])
+    }
+
+    @Test func keepsExistingTaskbarPinsFromEarlierVersion() throws {
+        let suite = "TenbarTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(["safari"], forKey: "PinnedAppIDs")
+        defaults.set(true, forKey: "PinsInitialized")
+
+        let preferences = Preferences(defaults: defaults)
+        #expect(preferences.pins(.taskbar)?.ids == ["safari"])
+        #expect(preferences.pins(.start) == nil)
     }
 }
 
