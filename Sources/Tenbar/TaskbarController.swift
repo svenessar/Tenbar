@@ -25,13 +25,15 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
 final class TaskbarController {
     private let tracker: WindowTracker
     private let catalog: AppCatalog
+    private let menus: AppMenus
     private let startMenu: StartMenuController
     private var panels: [CGDirectDisplayID: TaskbarPanel] = [:]
     private var token: NSObjectProtocol?
 
-    init(tracker: WindowTracker, catalog: AppCatalog) {
+    init(tracker: WindowTracker, catalog: AppCatalog, menus: AppMenus) {
         self.tracker = tracker
         self.catalog = catalog
+        self.menus = menus
         self.startMenu = StartMenuController(catalog: catalog)
     }
 
@@ -67,6 +69,7 @@ final class TaskbarController {
                 .environmentObject(tracker)
                 .environmentObject(catalog)
                 .environmentObject(startMenu)
+                .environmentObject(menus)
             panel.contentView = FirstMouseHostingView(rootView: root)
             panel.orderFrontRegardless()
             panels[id] = panel

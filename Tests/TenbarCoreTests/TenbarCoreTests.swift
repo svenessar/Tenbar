@@ -442,3 +442,41 @@ import Testing
         #expect(TileDrop.target(location: .zero, tiles: [], headerMaxY: 30) == nil)
     }
 }
+
+@Suite struct NewCommandsTests {
+    @Test func finderFileMenuPutsCommandNFirst() {
+        let items = [
+            MenuItemInfo(title: "Neuer Ordner", key: "N", modifiers: 1),
+            MenuItemInfo(title: "Neues Finder-Fenster", key: "N"),
+            MenuItemInfo(title: "Neuer Tab", key: "T"),
+            MenuItemInfo(title: "Öffnen", key: "O"),
+            MenuItemInfo(title: "Neues Dokument", enabled: false),
+        ]
+        let commands = NewCommands.select(menuTitle: "Ablage", items: items)
+        #expect(commands.map(\.title) == ["Neues Finder-Fenster", "Neuer Ordner", "Neuer Tab"])
+        #expect(commands[0].path == ["Ablage", "Neues Finder-Fenster"])
+        #expect(commands[1].shortcut == "⇧⌘N")
+    }
+
+    @Test func keepsSubmenuItemsAndMatchesCommandNWithoutPrefix() {
+        let items = [
+            MenuItemInfo(title: "Neues Fenster", children: [
+                MenuItemInfo(title: "Basic", key: "N"),
+                MenuItemInfo(title: "Pro"),
+                MenuItemInfo(title: "", enabled: true),
+            ]),
+            MenuItemInfo(title: "Project…", key: "N"),
+            MenuItemInfo(title: "New", children: [MenuItemInfo(title: "File", enabled: false)]),
+        ]
+        let commands = NewCommands.select(menuTitle: "File", items: items)
+        #expect(commands.map(\.title) == ["Project…", "Neues Fenster"])
+        #expect(commands[1].children.map(\.path) == [["File", "Neues Fenster", "Basic"], ["File", "Neues Fenster", "Pro"]])
+    }
+
+    @Test func shortcutText() {
+        #expect(NewCommands.shortcutText(key: "n", modifiers: 0) == "⌘N")
+        #expect(NewCommands.shortcutText(key: "N", modifiers: 3) == "⌥⇧⌘N")
+        #expect(NewCommands.shortcutText(key: "N", modifiers: 8) == "N")
+        #expect(NewCommands.shortcutText(key: nil, modifiers: 0) == nil)
+    }
+}

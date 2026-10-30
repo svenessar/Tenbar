@@ -11,6 +11,7 @@ struct TaskbarItemButton: View {
     let onDrop: (String) -> Void
     @EnvironmentObject private var tracker: WindowTracker
     @EnvironmentObject private var catalog: AppCatalog
+    @EnvironmentObject private var menus: AppMenus
     @State private var showWindowList = false
     @State private var isDropTarget = false
 
@@ -33,11 +34,18 @@ struct TaskbarItemButton: View {
             onDrop(source)
             return true
         } isTargeted: { isDropTarget = $0 }
+        // Hovering precedes a right-click, so the "Neu" submenu is fresh when the menu opens.
+        .onHover { inside in if inside, let pid = runningPID { menus.refresh(pid: pid) } }
         .contextMenu { menu }
         .popover(isPresented: $showWindowList, arrowEdge: .top) {
             WindowListView(appName: appName, windows: windows) { showWindowList = false }
                 .environmentObject(tracker)
         }
+    }
+
+    private var runningPID: pid_t? {
+        windows.first?.pid
+            ?? NSRunningApplication.runningApplications(withBundleIdentifier: item.appKey).first?.processIdentifier
     }
 
     private var appName: String {
@@ -113,6 +121,21 @@ struct TaskbarItemButton: View {
     @ViewBuilder
     private var menu: some View {
         Button("\(appName) öffnen") { catalog.launch(appKey: item.appKey, fallbackName: appName) }
+        if let pid = runningPID, let commands = menus.commands[pid], !commands.isEmpty {
+            Menu("Neu") {
+                ForEach(commands) { command in
+                    if command.children.isEmpty {
+                        Button(command.title) { menus.perform(command, pid: pid) }
+                    } else {
+                        Menu(command.title) {
+                            ForEach(command.children) { child in
+                                Button(child.title) { menus.perform(child, pid: pid) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if !item.appKey.hasPrefix("pid-") {
             let pinned = catalog.isPinned(item.appKey, to: .taskbar(display: displayKey))
             Button(pinned ? "Von Taskleiste lösen" : "An Taskleiste anheften") {
