@@ -26,6 +26,9 @@ final class StartMenuPanel: NSPanel {
 final class StartMenuController: ObservableObject {
     @Published private(set) var openDisplayID: CGDirectDisplayID?
     @Published private(set) var size = StartMenuSize.standard
+    @Published var searchText = ""
+    /// Incremented on every open, so the view can focus the search field.
+    @Published private(set) var openCount = 0
 
     private let catalog: AppCatalog
     private let panel = StartMenuPanel()
@@ -68,8 +71,10 @@ final class StartMenuController: ObservableObject {
             panel.contentView = host
             hasContent = true
         }
+        searchText = ""
         applyFrame()
         panel.makeKeyAndOrderFront(nil)
+        openCount += 1
         uiLog.notice("start open frame=\(String(describing: self.panel.frame), privacy: .public) content=\(String(describing: type(of: self.panel.contentView!)), privacy: .public) visible=\(self.panel.isVisible)")
         installMonitors()
     }
@@ -132,7 +137,11 @@ final class StartMenuController: ObservableObject {
             let isEscape = event.type == .keyDown && event.keyCode == 53
             let inTaskbar = event.type != .keyDown && event.window is TaskbarPanel
             guard isEscape || inTaskbar else { return event }
-            MainActor.assumeIsolated { self?.close(auto: inTaskbar) }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // Escape first clears the search, a second Escape closes the menu.
+                if isEscape, !self.searchText.isEmpty { self.searchText = "" } else { self.close(auto: inTaskbar) }
+            }
             return isEscape ? nil : event
         }) { monitors.append(local) }
         spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(

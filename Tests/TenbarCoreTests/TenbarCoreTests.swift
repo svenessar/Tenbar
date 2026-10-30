@@ -271,3 +271,37 @@ import Testing
         #expect(prefs.startMenuSize(forDisplay: "A") == nil)
     }
 }
+
+@Suite struct AppSearchTests {
+    let names = ["App Store", "Mail", "Microsoft Word", "Système", "Photo Booth", "Photos", "Wordle"]
+
+    func search(_ query: String) -> [String] {
+        AppSearch.filter(names, query: query, name: { $0 })
+    }
+
+    @Test func emptyQueryKeepsEverything() {
+        #expect(search("  ") == names)
+    }
+
+    @Test func ranksPrefixThenWordThenContains() {
+        #expect(search("word") == ["Wordle", "Microsoft Word"])
+        #expect(search("photo") == ["Photo Booth", "Photos"])
+        #expect(search("ai") == ["Mail"])
+    }
+
+    @Test func ignoresCaseAndDiacritics() {
+        #expect(search("SYSTEME") == ["Système"])
+        #expect(search("mAIL") == ["Mail"])
+    }
+
+    @Test func matchesBundleIdentifierLast() {
+        let apps = [AppRecord(id: "com.apple.iCal", name: "Calendar", path: ""),
+                    AppRecord(id: "x.ical", name: "iCal Tools", path: "")]
+        let result = AppSearch.filter(apps, query: "ical", name: \.name, id: \.id)
+        #expect(result.map(\.name) == ["iCal Tools", "Calendar"])
+    }
+
+    @Test func noMatchReturnsEmpty() {
+        #expect(search("zzz").isEmpty)
+    }
+}

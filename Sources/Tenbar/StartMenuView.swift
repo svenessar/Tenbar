@@ -7,6 +7,8 @@ struct StartMenuView: View {
     @EnvironmentObject private var menu: StartMenuController
     @State private var dropTargetTile: String?
     @State private var dragStart: (mouse: NSPoint, size: StartMenuSize)?
+    @State private var selection = 0
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         let size = menu.size
@@ -113,20 +115,86 @@ struct StartMenuView: View {
         powerMenu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
+    private var searchResults: [InstalledApp] {
+        AppSearch.filter(catalog.apps, query: menu.searchText, name: \.name, id: \.id)
+    }
+
+    private var isSearching: Bool { !menu.searchText.trimmingCharacters(in: .whitespaces).isEmpty }
+
     private var allApps: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionTitle("Alle Apps")
+        let results = searchResults
+        return VStack(alignment: .leading, spacing: 0) {
+            searchField(results)
+            sectionTitle(isSearching ? "Suchergebnisse" : "Alle Apps")
             if catalog.apps.isEmpty {
                 ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if results.isEmpty {
+                Text("Keine App für „\(menu.searchText)“ gefunden")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14)
+                Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(catalog.apps) { app in appRow(app) }
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(results.enumerated()), id: \.element.id) { index, app in
+                                appRow(app, highlighted: isSearching && index == selection).id(app.id)
+                            }
+                        }
+                        .padding(.bottom, 8)
                     }
-                    .padding(.bottom, 8)
+                    .onChange(of: selection) { _, index in
+                        if results.indices.contains(index) { proxy.scrollTo(results[index].id) }
+                    }
+                    .onChange(of: menu.searchText) { _, _ in
+                        if let first = results.first { proxy.scrollTo(first.id, anchor: .top) }
+                    }
                 }
             }
         }
+        .onChange(of: menu.searchText) { _, _ in selection = 0 }
+        .onChange(of: menu.openCount) { _, _ in focusSearch() }
+        .onAppear { focusSearch() }
+    }
+
+    private func searchField(_ results: [InstalledApp]) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(.secondary)
+            TextField("Apps durchsuchen", text: $menu.searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .focused($searchFocused)
+                .onSubmit {
+                    if results.indices.contains(selection) { launch(results[selection]) }
+                }
+                .onKeyPress(.downArrow) {
+                    selection = min(selection + 1, max(results.count - 1, 0))
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    selection = max(selection - 1, 0)
+                    return .handled
+                }
+            if !menu.searchText.isEmpty {
+                Button { menu.searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Suche leeren")
+            }
+        }
+        .padding(.horizontal, 10).frame(height: 30)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+        .overlay {
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(searchFocused ? Color.accentColor.opacity(0.8) : .clear, lineWidth: 1)
+        }
+        .padding(.horizontal, 12).padding(.top, 12)
+    }
+
+    private func focusSearch() {
+        // Wait until the panel is key, otherwise the focus request is dropped.
+        DispatchQueue.main.async { searchFocused = true }
     }
 
     private var pinned: some View {
@@ -157,8 +225,8 @@ struct StartMenuView: View {
             .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 8)
     }
 
-    private func appRow(_ app: InstalledApp) -> some View {
-        HoverButton(action: { launch(app) }) {
+    private func appRow(_ app: InstalledApp, highlighted: Bool = false) -> some View {
+        HoverButton(action: { launch(app) }, idleBackground: highlighted ? Theme.active : .clear) {
             HStack(spacing: 10) {
                 Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 24, height: 24)
                 Text(app.name).font(.system(size: 12)).lineLimit(1)
