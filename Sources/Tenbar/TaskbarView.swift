@@ -19,6 +19,8 @@ struct TaskbarView: View {
     @State private var showStartMenu = false
     @State private var dropAtEnd = false
 
+    private var displayKey: String { stableDisplayKey(displayID) }
+
     var body: some View {
         let windows = windowsOnDisplay
         let windowsByID = Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0) })
@@ -29,8 +31,8 @@ struct TaskbarView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
                     ForEach(items) { item in
-                        TaskbarItemButton(item: item, windows: item.windowIDs.compactMap { windowsByID[$0] }) { source in
-                            catalog.dropOnTaskbar(source, before: item.appKey, visibleUnpinned: visibleUnpinned)
+                        TaskbarItemButton(item: item, windows: item.windowIDs.compactMap { windowsByID[$0] }, displayKey: displayKey) { source in
+                            catalog.dropOnTaskbar(source, before: item.appKey, display: displayKey, visibleUnpinned: visibleUnpinned)
                         }
                     }
                 }
@@ -40,7 +42,7 @@ struct TaskbarView: View {
             }
             .dropDestination(for: String.self) { keys, _ in
                 guard let source = keys.first else { return false }
-                catalog.dropOnTaskbar(source, before: nil, visibleUnpinned: visibleUnpinned)
+                catalog.dropOnTaskbar(source, before: nil, display: displayKey, visibleUnpinned: visibleUnpinned)
                 return true
             } isTargeted: { dropAtEnd = $0 }
             if !tracker.hasPermission { permissionButton }
@@ -64,7 +66,7 @@ struct TaskbarView: View {
     private func items(for windows: [TaskWindow]) -> [TaskbarItem<UUID>] {
         let running = Set(windows.map(\.appKey))
         // Hide pins whose app is neither installed (catalog not scanned yet / app removed) nor running.
-        let pinned = catalog.taskbarPins.ids.filter { running.contains($0) || catalog.app(id: $0) != nil }
+        let pinned = catalog.taskbarPins(display: displayKey).ids.filter { running.contains($0) || catalog.app(id: $0) != nil }
         return TaskbarLayout.items(
             pinnedAppKeys: pinned,
             windows: windows.map { (id: $0.id, appKey: $0.appKey) },
@@ -91,7 +93,7 @@ struct TaskbarView: View {
             }
             Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
             Button("Startmenü-Größe zurücksetzen") {
-                catalog.setStartMenuSize(nil, forDisplay: stableDisplayKey(displayID))
+                catalog.setStartMenuSize(nil, forDisplay: displayKey)
             }
             Divider()
             Button("Tenbar beenden") { NSApp.terminate(nil) }

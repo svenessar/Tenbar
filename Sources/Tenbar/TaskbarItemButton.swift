@@ -6,6 +6,7 @@ import TenbarCore
 struct TaskbarItemButton: View {
     let item: TaskbarItem<UUID>
     let windows: [TaskWindow]
+    let displayKey: String
     /// Called with the dragged app key when something is dropped onto this item.
     let onDrop: (String) -> Void
     @EnvironmentObject private var tracker: WindowTracker
@@ -112,9 +113,9 @@ struct TaskbarItemButton: View {
     private var menu: some View {
         Button("\(appName) öffnen") { catalog.launch(appKey: item.appKey, fallbackName: appName) }
         if !item.appKey.hasPrefix("pid-") {
-            let pinned = catalog.isPinned(item.appKey, to: .taskbar)
+            let pinned = catalog.isPinned(item.appKey, to: .taskbar(display: displayKey))
             Button(pinned ? "Von Taskleiste lösen" : "An Taskleiste anheften") {
-                catalog.togglePin(item.appKey, .taskbar)
+                catalog.togglePin(item.appKey, .taskbar(display: displayKey))
             }
         }
         if let first = windows.first {

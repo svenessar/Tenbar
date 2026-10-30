@@ -1,6 +1,12 @@
 import AppKit
 import TenbarCore
 
+/// Pin target in the app: the start menu, or the taskbar of one display.
+enum PinTarget: Hashable {
+    case start
+    case taskbar(display: String)
+}
+
 struct InstalledApp: Identifiable, Hashable {
     let record: AppRecord
     var id: String { record.id }
@@ -12,7 +18,9 @@ struct InstalledApp: Identifiable, Hashable {
 @MainActor
 final class AppCatalog: ObservableObject {
     @Published private(set) var apps: [InstalledApp] = []
-    @Published private(set) var taskbarPins: PinList
+    /// Template for displays without an own list (the former global taskbar pins).
+    @Published private(set) var taskbarPinTemplate: PinList
+    @Published private(set) var taskbarPinsByDisplay: [String: PinList] = [:]
     @Published private(set) var startPins: PinList
     @Published var statusMessage = ""
     @Published var combineMode: CombineMode {
@@ -40,7 +48,7 @@ final class AppCatalog: ObservableObject {
 
     init(preferences: Preferences = Preferences()) {
         self.preferences = preferences
-        self.taskbarPins = preferences.pins(.taskbar) ?? PinList()
+        self.taskbarPinTemplate = preferences.pins(.taskbar) ?? PinList()
         self.startPins = preferences.pins(.start) ?? PinList()
         self.combineMode = preferences.combineMode
         self.showLabels = preferences.showLabels
@@ -71,7 +79,7 @@ final class AppCatalog: ObservableObject {
             apps = records.map(InstalledApp.init(record:))
             for location in PinLocation.allCases where preferences.pins(location) == nil {
                 let defaults = PinList.defaults(available: records.map(\.id), preferred: Self.preferredPins(location))
-                setPins(defaults, location)
+                setDefaultPins(defaults, location)
             }
             isScanning = false
         }
@@ -84,37 +92,54 @@ final class AppCatalog: ObservableObject {
         return icon
     }
 
-    func pins(_ location: PinLocation) -> PinList {
-        switch location {
-        case .taskbar: taskbarPins
+    func taskbarPins(display: String) -> PinList {
+        if let pins = taskbarPinsByDisplay[display] { return pins }
+        return preferences.taskbarPins(forDisplay: display) ?? taskbarPinTemplate
+    }
+
+    func pins(_ target: PinTarget) -> PinList {
+        switch target {
         case .start: startPins
+        case .taskbar(let display): taskbarPins(display: display)
         }
     }
 
-    func isPinned(_ appID: String, to location: PinLocation) -> Bool {
-        pins(location).contains(appID)
+    func isPinned(_ appID: String, to target: PinTarget) -> Bool {
+        pins(target).contains(appID)
     }
 
-    func togglePin(_ appID: String, _ location: PinLocation) {
-        var updated = pins(location)
+    func togglePin(_ appID: String, _ target: PinTarget) {
+        var updated = pins(target)
         updated.toggle(appID)
-        setPins(updated, location)
+        setPins(updated, target)
     }
 
-    private func setPins(_ pins: PinList, _ location: PinLocation) {
+    private func setPins(_ pins: PinList, _ target: PinTarget) {
+        switch target {
+        case .start:
+            startPins = pins
+            preferences.setPins(pins, .start)
+        case .taskbar(let display):
+            taskbarPinsByDisplay[display] = pins
+            preferences.setTaskbarPins(pins, forDisplay: display)
+        }
+    }
+
+    /// Initial pins after the first app scan (only for lists that were never set).
+    private func setDefaultPins(_ pins: PinList, _ location: PinLocation) {
         switch location {
-        case .taskbar: taskbarPins = pins
+        case .taskbar: taskbarPinTemplate = pins
         case .start: startPins = pins
         }
         preferences.setPins(pins, location)
     }
 
-    /// Applies a drop on the taskbar. `target` nil means "after the last item".
-    func dropOnTaskbar(_ source: String, before target: String?, visibleUnpinned: [String]) {
-        switch TaskbarDrop.apply(source: source, target: target, pins: taskbarPins,
+    /// Applies a drop on a display's taskbar. `target` nil means "after the last item".
+    func dropOnTaskbar(_ source: String, before target: String?, display: String, visibleUnpinned: [String]) {
+        switch TaskbarDrop.apply(source: source, target: target, pins: taskbarPins(display: display),
                                  visibleUnpinned: visibleUnpinned, unpinnedOrder: unpinnedOrder) {
         case .none: break
-        case .pins(let pins): setPins(pins, .taskbar)
+        case .pins(let pins): setPins(pins, .taskbar(display: display))
         case .unpinnedOrder(let order): unpinnedOrder = order
         }
     }

@@ -84,6 +84,23 @@ import Testing
         #expect(preferences.pins(.start)?.ids == ["mail", "notes"])
     }
 
+    @Test func taskbarPinsArePerDisplay() throws {
+        let suite = "TenbarTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = Preferences(defaults: defaults)
+
+        preferences.setPins(PinList(["finder"]), .taskbar)
+        #expect(preferences.taskbarPins(forDisplay: "A") == nil)
+        preferences.setTaskbarPins(PinList(["mail"]), forDisplay: "A")
+        preferences.setTaskbarPins(PinList(), forDisplay: "B")
+        #expect(preferences.taskbarPins(forDisplay: "A")?.ids == ["mail"])
+        #expect(preferences.taskbarPins(forDisplay: "B") == PinList())
+        #expect(preferences.pins(.taskbar)?.ids == ["finder"])
+        preferences.setTaskbarPins(nil, forDisplay: "A")
+        #expect(preferences.taskbarPins(forDisplay: "A") == nil)
+    }
+
     @Test func keepsExistingTaskbarPinsFromEarlierVersion() throws {
         let suite = "TenbarTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -242,7 +259,9 @@ import Testing
     }
 
     @Test func sizesArePersistedPerDisplay() {
-        let defaults = UserDefaults(suiteName: "tenbar.test.\(UUID().uuidString)")!
+        let suite = "TenbarTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
         let prefs = Preferences(defaults: defaults)
         let big = StartMenuSize(allAppsWidth: 300, pinnedWidth: 600, height: 800)
         prefs.setStartMenuSize(big, forDisplay: "A")

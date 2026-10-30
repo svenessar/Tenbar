@@ -11,6 +11,7 @@ public struct Preferences {
         static let combineMode = "CombineMode"
         static let showLabels = "ShowLabels"
         static let startMenuSizes = "StartMenuSizes"
+        static let taskbarPinsByDisplay = "TaskbarPinsByDisplay"
 
         static func pinnedAppIDs(_ location: PinLocation) -> String {
             switch location {
@@ -58,6 +59,17 @@ public struct Preferences {
     public var showLabels: Bool {
         get { defaults.object(forKey: Key.showLabels) as? Bool ?? true }
         nonmutating set { defaults.set(newValue, forKey: Key.showLabels) }
+    }
+
+    /// Taskbar pins of one display. nil means the display has no own list yet and uses `pins(.taskbar)`.
+    public func taskbarPins(forDisplay key: String) -> PinList? {
+        (defaults.dictionary(forKey: Key.taskbarPinsByDisplay) as? [String: [String]])?[key].map(PinList.init)
+    }
+
+    public func setTaskbarPins(_ pins: PinList?, forDisplay key: String) {
+        var all = defaults.dictionary(forKey: Key.taskbarPinsByDisplay) as? [String: [String]] ?? [:]
+        all[key] = pins?.ids
+        defaults.set(all, forKey: Key.taskbarPinsByDisplay)
     }
 
     /// Start menu size per display (keyed by a stable display identifier). nil means default size.

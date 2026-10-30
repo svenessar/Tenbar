@@ -208,8 +208,8 @@ struct StartMenuView: View {
         Button(catalog.isPinned(app.id, to: .start) ? "Von Start lösen" : "An Start anheften") {
             catalog.togglePin(app.id, .start)
         }
-        Button(catalog.isPinned(app.id, to: .taskbar) ? "Von Taskleiste lösen" : "An Taskleiste anheften") {
-            catalog.togglePin(app.id, .taskbar)
+        Button(catalog.isPinned(app.id, to: .taskbar(display: displayKey)) ? "Von Taskleiste lösen" : "An Taskleiste anheften") {
+            catalog.togglePin(app.id, .taskbar(display: displayKey))
         }
     }
 
