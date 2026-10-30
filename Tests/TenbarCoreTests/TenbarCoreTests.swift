@@ -169,3 +169,46 @@ import Testing
         #expect(Preferences(defaults: defaults).combineMode == .never)
     }
 }
+
+@Suite struct TaskbarDropTests {
+    let pins = PinList(["finder", "safari", "mail"])
+
+    func drop(_ source: String, on target: String?, visible: [String] = ["notes", "music"], order: [String] = []) -> TaskbarDrop.Result {
+        TaskbarDrop.apply(source: source, target: target, pins: pins, visibleUnpinned: visible, unpinnedOrder: order)
+    }
+
+    @Test func reordersPinnedApps() {
+        #expect(drop("mail", on: "finder") == .pins(PinList(["mail", "finder", "safari"])))
+        #expect(drop("finder", on: nil) == .pins(PinList(["safari", "mail", "finder"])))
+    }
+
+    @Test func pinnedDroppedOnUnpinnedMovesToEndOfPins() {
+        #expect(drop("finder", on: "notes") == .pins(PinList(["safari", "mail", "finder"])))
+        #expect(drop("mail", on: "notes") == TaskbarDrop.Result.none)
+    }
+
+    @Test func reordersUnpinnedAppsAndKeepsHiddenOnes() {
+        #expect(drop("music", on: "notes", order: ["photos"]) == .unpinnedOrder(["music", "notes", "photos"]))
+        #expect(drop("notes", on: nil) == .unpinnedOrder(["music", "notes"]))
+    }
+
+    @Test func unpinnedCannotMoveIntoPinnedArea() {
+        #expect(drop("notes", on: "safari") == TaskbarDrop.Result.none)
+    }
+
+    @Test func externalAppGetsPinnedAtDropPosition() {
+        #expect(drop("calendar", on: "safari") == .pins(PinList(["finder", "calendar", "safari", "mail"])))
+        #expect(drop("calendar", on: nil) == .pins(PinList(["finder", "safari", "mail", "calendar"])))
+        #expect(drop("calendar", on: "notes") == .pins(PinList(["finder", "safari", "mail", "calendar"])))
+    }
+
+    @Test func droppingOnItselfDoesNothing() {
+        #expect(drop("safari", on: "safari") == TaskbarDrop.Result.none)
+    }
+
+    @Test func layoutHonorsUnpinnedOrder() {
+        let windows: [(id: Int, appKey: String)] = [(1, "notes"), (2, "music"), (3, "photos")]
+        let items = TaskbarLayout.items(pinnedAppKeys: [], windows: windows, mode: .always, unpinnedOrder: ["music", "notes"])
+        #expect(items.map(\.appKey) == ["music", "notes", "photos"])
+    }
+}

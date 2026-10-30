@@ -17,19 +17,32 @@ struct TaskbarView: View {
     @EnvironmentObject private var tracker: WindowTracker
     @EnvironmentObject private var catalog: AppCatalog
     @State private var showStartMenu = false
+    @State private var dropAtEnd = false
 
     var body: some View {
         let windows = windowsOnDisplay
         let windowsByID = Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0) })
+        let items = items(for: windows)
+        let visibleUnpinned = unpinnedKeys(in: items)
         HStack(spacing: 2) {
             startButton
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
-                    ForEach(items(for: windows)) { item in
-                        TaskbarItemButton(item: item, windows: item.windowIDs.compactMap { windowsByID[$0] })
+                    ForEach(items) { item in
+                        TaskbarItemButton(item: item, windows: item.windowIDs.compactMap { windowsByID[$0] }) { source in
+                            catalog.dropOnTaskbar(source, before: item.appKey, visibleUnpinned: visibleUnpinned)
+                        }
                     }
                 }
+                .overlay(alignment: .trailing) {
+                    if dropAtEnd { DropMarker().offset(x: 2) }
+                }
             }
+            .dropDestination(for: String.self) { keys, _ in
+                guard let source = keys.first else { return false }
+                catalog.dropOnTaskbar(source, before: nil, visibleUnpinned: visibleUnpinned)
+                return true
+            } isTargeted: { dropAtEnd = $0 }
             if !tracker.hasPermission { permissionButton }
         }
         .padding(.horizontal, 4)
@@ -38,7 +51,7 @@ struct TaskbarView: View {
         .background(Theme.barBackground)
         .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.12)).frame(height: 0.5) }
         .environment(\.colorScheme, .dark)
-        .animation(.snappy(duration: 0.15), value: tracker.windows.map(\.id))
+        .animation(.snappy(duration: 0.15), value: items.map(\.id))
         .onChange(of: showStartMenu) { _, isShown in
             if isShown { catalog.rescan() }
         }
@@ -55,8 +68,14 @@ struct TaskbarView: View {
         return TaskbarLayout.items(
             pinnedAppKeys: pinned,
             windows: windows.map { (id: $0.id, appKey: $0.appKey) },
-            mode: catalog.combineMode
+            mode: catalog.combineMode,
+            unpinnedOrder: catalog.unpinnedOrder
         )
+    }
+
+    private func unpinnedKeys(in items: [TaskbarItem<UUID>]) -> [String] {
+        var seen = Set<String>()
+        return items.filter { !$0.isPinned && seen.insert($0.appKey).inserted }.map(\.appKey)
     }
 
     private var startButton: some View {
@@ -86,6 +105,13 @@ struct TaskbarView: View {
             Label("Fensterzugriff erlauben", systemImage: "hand.raised.fill")
                 .font(.system(size: 11, weight: .medium)).padding(.horizontal, 10)
         }
+    }
+}
+
+/// Insertion marker shown while dragging an app over the taskbar or start tiles.
+struct DropMarker: View {
+    var body: some View {
+        Capsule().fill(Color.accentColor).frame(width: 3).padding(.vertical, 6)
     }
 }
 

@@ -10,6 +10,7 @@ Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swi
   - **Nie gruppieren:** eine beschriftete Schaltfläche pro Fenster, an der Position der angehefteten App.
 - Klick auf ein einzelnes Fenster holt es nach vorn; ist es bereits aktiv, wird es minimiert.
 - Kontextmenü: App öffnen, an die Taskleiste anheften oder lösen, Fenster bzw. alle Fenster schließen, App beenden.
+- Drag & Drop: Angeheftete Apps lassen sich auf der Taskleiste umsortieren (wird gespeichert), laufende Apps untereinander ebenfalls (nur bis zum Beenden von Tenbar). Eine App aus dem Startmenü auf die Taskleiste ziehen heftet sie an der Ablagestelle an. Start-Kacheln lassen sich ebenso sortieren, und aus der App-Liste gezogene Apps werden an Start angeheftet.
 - Startmenü und Taskleiste haben wie bei Windows 10 getrennte Pin-Listen. Im Startmenü bietet das Kontextmenü „An Start anheften“ und „An Taskleiste anheften“.
 - Startmenü: alphabetische Liste aller Apps, Kacheln der angehefteten Apps und ein Ein/Aus-Menü (Sperren, Energie sparen, Abmelden, Neu starten, Herunterfahren). Die letzten drei fragen vorher nach.
 - Die Fensterliste aktualisiert sich über `AXObserver`- und `NSWorkspace`-Ereignisse statt durch ständige Abfrage. Ein Sicherheitsabgleich läuft alle 5 Sekunden.
@@ -46,7 +47,6 @@ swift test         # Tests
 ## Nächste Ausbaustufen
 
 - Option „Gruppieren, wenn die Taskleiste voll ist“
-- Reihenfolge per Drag & Drop ändern
 - Einstellungsfenster (Taskleiste pro Bildschirm, Breiten, Schriftgrößen)
 - „Zuletzt verwendet“ im Startmenü und Größe des Startmenüs einstellbar
 - Neue Fenster auf dem Bildschirm der geklickten Taskleiste öffnen

@@ -6,9 +6,12 @@ import TenbarCore
 struct TaskbarItemButton: View {
     let item: TaskbarItem<UUID>
     let windows: [TaskWindow]
+    /// Called with the dragged app key when something is dropped onto this item.
+    let onDrop: (String) -> Void
     @EnvironmentObject private var tracker: WindowTracker
     @EnvironmentObject private var catalog: AppCatalog
     @State private var showWindowList = false
+    @State private var isDropTarget = false
 
     var body: some View {
         let focused = windows.contains { tracker.isFrontmost($0) }
@@ -20,6 +23,15 @@ struct TaskbarItemButton: View {
         ) {
             if item.representsApp { appIconLabel } else { windowLabel }
         }
+        .overlay(alignment: .leading) {
+            if isDropTarget { DropMarker().offset(x: -2) }
+        }
+        .draggable(item.appKey) { iconImage(size: 28) }
+        .dropDestination(for: String.self) { keys, _ in
+            guard let source = keys.first, source != item.appKey else { return false }
+            onDrop(source)
+            return true
+        } isTargeted: { isDropTarget = $0 }
         .contextMenu { menu }
         .popover(isPresented: $showWindowList, arrowEdge: .top) {
             WindowListView(appName: appName, windows: windows) { showWindowList = false }

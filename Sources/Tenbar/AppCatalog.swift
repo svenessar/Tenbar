@@ -18,6 +18,8 @@ final class AppCatalog: ObservableObject {
     @Published var combineMode: CombineMode {
         didSet { preferences.combineMode = combineMode }
     }
+    /// Order of running, unpinned apps (in memory only, like Windows 10).
+    @Published private(set) var unpinnedOrder: [String] = []
 
     private let preferences: Preferences
     private var isScanning = false
@@ -93,6 +95,30 @@ final class AppCatalog: ObservableObject {
         case .start: startPins = pins
         }
         preferences.setPins(pins, location)
+    }
+
+    /// Applies a drop on the taskbar. `target` nil means "after the last item".
+    func dropOnTaskbar(_ source: String, before target: String?, visibleUnpinned: [String]) {
+        switch TaskbarDrop.apply(source: source, target: target, pins: taskbarPins,
+                                 visibleUnpinned: visibleUnpinned, unpinnedOrder: unpinnedOrder) {
+        case .none: break
+        case .pins(let pins): setPins(pins, .taskbar)
+        case .unpinnedOrder(let order): unpinnedOrder = order
+        }
+    }
+
+    /// Pins `source` to start (if needed) and places it before `target`, or at the end.
+    func dropOnStart(_ source: String, before target: String?) {
+        guard source != target else { return }
+        var pins = startPins
+        if let target, pins.contains(target) {
+            pins.pin(source)
+            pins.move(source, before: target)
+        } else {
+            pins.unpin(source)
+            pins.pin(source)
+        }
+        if pins != startPins { setPins(pins, .start) }
     }
 
     func launch(_ app: InstalledApp) {

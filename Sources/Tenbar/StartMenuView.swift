@@ -5,6 +5,7 @@ import TenbarCore
 struct StartMenuView: View {
     @Binding var isPresented: Bool
     @EnvironmentObject private var catalog: AppCatalog
+    @State private var dropTargetTile: String?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -67,6 +68,12 @@ struct StartMenuView: View {
                     ForEach(catalog.startPinnedApps) { app in tile(app) }
                 }
                 .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+            }
+            .dropDestination(for: String.self) { keys, _ in
+                guard let source = keys.first else { return false }
+                catalog.dropOnStart(source, before: nil)
+                return true
             }
             if !catalog.statusMessage.isEmpty {
                 Text(catalog.statusMessage).font(.system(size: 10)).foregroundStyle(.secondary)
@@ -93,6 +100,7 @@ struct StartMenuView: View {
             }
             .padding(.horizontal, 12).frame(height: 34)
         }
+        .draggable(app.id) { dragPreview(app) }
         .contextMenu { pinMenu(app) }
     }
 
@@ -104,7 +112,22 @@ struct StartMenuView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 72)
         }
+        .overlay(alignment: .leading) {
+            if dropTargetTile == app.id { DropMarker().offset(x: -4) }
+        }
+        .draggable(app.id) { dragPreview(app) }
+        .dropDestination(for: String.self) { keys, _ in
+            guard let source = keys.first else { return false }
+            catalog.dropOnStart(source, before: app.id)
+            return true
+        } isTargeted: { targeted in
+            if targeted { dropTargetTile = app.id } else if dropTargetTile == app.id { dropTargetTile = nil }
+        }
         .contextMenu { pinMenu(app) }
+    }
+
+    private func dragPreview(_ app: InstalledApp) -> some View {
+        Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 32, height: 32)
     }
 
     @ViewBuilder
