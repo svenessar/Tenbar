@@ -5,6 +5,7 @@ public struct Preferences {
     private enum Key {
         static let pinnedAppIDs = "PinnedAppIDs"
         static let pinsInitialized = "PinsInitialized"
+        static let combineMode = "CombineMode"
     }
 
     private let defaults: UserDefaults
@@ -27,5 +28,10 @@ public struct Preferences {
                 defaults.removeObject(forKey: Key.pinsInitialized)
             }
         }
+    }
+
+    public var combineMode: CombineMode {
+        get { defaults.string(forKey: Key.combineMode).flatMap(CombineMode.init(rawValue:)) ?? .always }
+        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.combineMode) }
     }
 }

@@ -14,6 +14,9 @@ final class AppCatalog: ObservableObject {
     @Published private(set) var apps: [InstalledApp] = []
     @Published private(set) var pins: PinList
     @Published var statusMessage = ""
+    @Published var combineMode: CombineMode {
+        didSet { preferences.combineMode = combineMode }
+    }
 
     private let preferences: Preferences
     private var isScanning = false
@@ -24,6 +27,11 @@ final class AppCatalog: ObservableObject {
     init(preferences: Preferences = Preferences()) {
         self.preferences = preferences
         self.pins = preferences.pins ?? PinList()
+        self.combineMode = preferences.combineMode
+    }
+
+    func app(id: String) -> InstalledApp? {
+        apps.first { $0.id == id }
     }
 
     var pinnedApps: [InstalledApp] {
@@ -68,12 +76,26 @@ final class AppCatalog: ObservableObject {
     }
 
     func launch(_ app: InstalledApp) {
+        open(app.url, name: app.name)
+    }
+
+    /// Launches by catalog ID or bundle identifier. For running apps this
+    /// activates them (or opens a new instance window, depending on the app).
+    func launch(appKey: String, fallbackName: String) {
+        if let app = app(id: appKey) {
+            launch(app)
+        } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appKey) {
+            open(url, name: fallbackName)
+        }
+    }
+
+    private func open(_ url: URL, name: String) {
         statusMessage = ""
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        NSWorkspace.shared.openApplication(at: app.url, configuration: configuration) { [weak self] _, error in
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
             guard let error else { return }
-            let message = "„\(app.name)“ konnte nicht geöffnet werden: \(error.localizedDescription)"
+            let message = "„\(name)“ konnte nicht geöffnet werden: \(error.localizedDescription)"
             Task { @MainActor in self?.statusMessage = message }
         }
     }

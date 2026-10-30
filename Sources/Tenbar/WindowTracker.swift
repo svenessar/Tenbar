@@ -13,6 +13,9 @@ struct TaskWindow: Identifiable, Equatable {
     let displayID: CGDirectDisplayID?
     let element: AXUIElement
 
+    /// Groups windows by app; matches pinned IDs, which are bundle identifiers.
+    var appKey: String { bundleID ?? "pid-\(pid)" }
+
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.id == rhs.id && lhs.title == rhs.title && lhs.isMinimized == rhs.isMinimized
             && lhs.displayID == rhs.displayID && lhs.appName == rhs.appName
@@ -235,6 +238,10 @@ final class WindowTracker: ObservableObject {
 
     func quitApp(of window: TaskWindow) {
         NSRunningApplication(processIdentifier: window.pid)?.terminate()
+    }
+
+    func closeAll(_ windows: [TaskWindow]) {
+        for window in windows { close(window) }
     }
 }
 

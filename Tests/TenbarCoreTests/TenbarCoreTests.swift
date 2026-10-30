@@ -108,3 +108,39 @@ import Testing
         #expect(names == ["alpha", "Zeta"])
     }
 }
+
+@Suite struct TaskbarLayoutTests {
+    let windows: [(id: Int, appKey: String)] = [(1, "mail"), (2, "safari"), (3, "mail"), (4, "notes")]
+
+    @Test func alwaysMergesPinnedAppsWithTheirWindows() {
+        let items = TaskbarLayout.items(pinnedAppKeys: ["finder", "safari"], windows: windows, mode: .always)
+        #expect(items.map(\.appKey) == ["finder", "safari", "mail", "notes"])
+        #expect(items.map(\.windowIDs) == [[], [2], [1, 3], [4]])
+        #expect(items.map(\.isPinned) == [true, true, false, false])
+        #expect(items.allSatisfy { $0.representsApp })
+    }
+
+    @Test func neverShowsOneItemPerWindowAtThePinnedPosition() {
+        let items = TaskbarLayout.items(pinnedAppKeys: ["finder", "mail"], windows: windows, mode: .never)
+        #expect(items.map(\.appKey) == ["finder", "mail", "mail", "safari", "notes"])
+        #expect(items.map(\.windowIDs) == [[], [1], [3], [2], [4]])
+        #expect(items.map(\.representsApp) == [true, false, false, false, false])
+    }
+
+    @Test func itemIDsAreUnique() {
+        for mode in CombineMode.allCases {
+            let items = TaskbarLayout.items(pinnedAppKeys: ["mail"], windows: windows, mode: mode)
+            #expect(Set(items.map(\.id)).count == items.count)
+        }
+    }
+
+    @Test func combineModePersists() throws {
+        let suite = "TenbarTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = Preferences(defaults: defaults)
+        #expect(preferences.combineMode == .always)
+        preferences.combineMode = .never
+        #expect(Preferences(defaults: defaults).combineMode == .never)
+    }
+}

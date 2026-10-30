@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import TenbarCore
 
 enum Theme {
     static let barHeight: CGFloat = 46
@@ -18,18 +19,14 @@ struct TaskbarView: View {
     @State private var showStartMenu = false
 
     var body: some View {
+        let windows = windowsOnDisplay
+        let windowsByID = Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0) })
         HStack(spacing: 2) {
             startButton
-            if !catalog.pinnedApps.isEmpty {
-                ForEach(catalog.pinnedApps) { app in
-                    PinnedAppButton(app: app, displayID: displayID)
-                }
-                Rectangle().fill(Color.white.opacity(0.18)).frame(width: 1, height: 26).padding(.horizontal, 4)
-            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
-                    ForEach(windowsOnDisplay) { window in
-                        WindowButton(window: window)
+                    ForEach(items(for: windows)) { item in
+                        TaskbarItemButton(item: item, windows: item.windowIDs.compactMap { windowsByID[$0] })
                     }
                 }
             }
@@ -51,6 +48,17 @@ struct TaskbarView: View {
         tracker.windows.filter { $0.displayID == displayID || ($0.displayID == nil && isPrimary) }
     }
 
+    private func items(for windows: [TaskWindow]) -> [TaskbarItem<UUID>] {
+        let running = Set(windows.map(\.appKey))
+        // Hide pins whose app is neither installed (catalog not scanned yet / app removed) nor running.
+        let pinned = catalog.pins.ids.filter { running.contains($0) || catalog.app(id: $0) != nil }
+        return TaskbarLayout.items(
+            pinnedAppKeys: pinned,
+            windows: windows.map { (id: $0.id, appKey: $0.appKey) },
+            mode: catalog.combineMode
+        )
+    }
+
     private var startButton: some View {
         BarButton(isActive: showStartMenu, help: "Start") {
             NSApp.activate()
@@ -59,6 +67,10 @@ struct TaskbarView: View {
             Image(systemName: "square.grid.2x2.fill").font(.system(size: 17)).frame(width: 46)
         }
         .contextMenu {
+            Picker("Taskleisten-Schaltflächen", selection: $catalog.combineMode) {
+                ForEach(CombineMode.allCases) { Text($0.title).tag($0) }
+            }
+            Divider()
             Button("Tenbar beenden") { NSApp.terminate(nil) }
         }
         .popover(isPresented: $showStartMenu, arrowEdge: .top) {
@@ -109,69 +121,3 @@ struct BarButton<Label: View>: View {
     }
 }
 
-struct WindowButton: View {
-    let window: TaskWindow
-    @EnvironmentObject private var tracker: WindowTracker
-    @EnvironmentObject private var catalog: AppCatalog
-
-    var body: some View {
-        let focused = tracker.isFrontmost(window)
-        BarButton(isActive: focused, indicator: focused ? .focused : .running, help: window.title) {
-            tracker.toggle(window)
-        } label: {
-            HStack(spacing: 8) {
-                if let icon = tracker.icon(for: window.pid) {
-                    Image(nsImage: icon).resizable().frame(width: 22, height: 22)
-                }
-                Text(window.title).font(.system(size: 11)).lineLimit(1).truncationMode(.tail)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 8)
-            .frame(width: Theme.windowButtonWidth)
-            .opacity(window.isMinimized ? 0.6 : 1)
-        }
-        .contextMenu {
-            if let bundleID = window.bundleID {
-                if catalog.pins.contains(bundleID) {
-                    Button("Von Taskleiste lösen") { catalog.unpin(appID: bundleID) }
-                } else {
-                    Button("An Taskleiste anheften") { catalog.pin(appID: bundleID) }
-                }
-                Divider()
-            }
-            Button("Fenster schließen") { tracker.close(window) }
-            Button("\(window.appName) beenden") { tracker.quitApp(of: window) }
-        }
-    }
-}
-
-struct PinnedAppButton: View {
-    let app: InstalledApp
-    let displayID: CGDirectDisplayID
-    @EnvironmentObject private var tracker: WindowTracker
-    @EnvironmentObject private var catalog: AppCatalog
-
-    var body: some View {
-        let windows = tracker.windows.filter { $0.bundleID == app.id }
-        let isFocused = windows.contains { tracker.isFrontmost($0) }
-        BarButton(isActive: false, indicator: windows.isEmpty ? .none : (isFocused ? .focused : .running), help: app.name) {
-            open(windows)
-        } label: {
-            Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 24, height: 24).frame(width: 44)
-        }
-        .contextMenu {
-            Button("\(app.name) öffnen") { catalog.launch(app) }
-            Button("Von Taskleiste lösen") { catalog.unpin(appID: app.id) }
-        }
-    }
-
-    private func open(_ windows: [TaskWindow]) {
-        let here = windows.filter { $0.displayID == displayID }
-        let candidates = here.isEmpty ? windows : here
-        if let target = candidates.first(where: { tracker.isFrontmost($0) }) ?? candidates.first {
-            tracker.toggle(target)
-        } else {
-            catalog.launch(app)
-        }
-    }
-}
