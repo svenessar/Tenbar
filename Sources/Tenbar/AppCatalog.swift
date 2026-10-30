@@ -26,6 +26,8 @@ final class AppCatalog: ObservableObject {
     @Published private(set) var startLayoutsByDisplay: [String: StartLayout] = [:]
     @Published private(set) var startLayoutPerDisplay: Bool
     @Published var statusMessage = ""
+    /// Called with the app key and display when an app is opened from a display, so its new window can go there.
+    var onOpen: ((String, CGDirectDisplayID) -> Void)?
     @Published var combineMode: CombineMode {
         didSet { preferences.combineMode = combineMode }
     }
@@ -214,16 +216,18 @@ final class AppCatalog: ObservableObject {
         preferences.startLayout = layout
     }
 
-    func launch(_ app: InstalledApp) {
+    func launch(_ app: InstalledApp, on display: CGDirectDisplayID? = nil) {
+        if let display { onOpen?(app.id, display) }
         open(app.url, name: app.name)
     }
 
     /// Launches by catalog ID or bundle identifier. For running apps this
     /// activates them (or opens a new instance window, depending on the app).
-    func launch(appKey: String, fallbackName: String) {
+    func launch(appKey: String, fallbackName: String, on display: CGDirectDisplayID? = nil) {
         if let app = app(id: appKey) {
-            launch(app)
+            launch(app, on: display)
         } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appKey) {
+            if let display { onOpen?(appKey, display) }
             open(url, name: fallbackName)
         }
     }

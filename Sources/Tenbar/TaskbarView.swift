@@ -32,7 +32,7 @@ struct TaskbarView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
                     ForEach(items) { item in
-                        TaskbarItemButton(item: item, windows: item.windowIDs.compactMap { windowsByID[$0] }, displayKey: displayKey) { source in
+                        TaskbarItemButton(item: item, windows: item.windowIDs.compactMap { windowsByID[$0] }, displayKey: displayKey, displayID: displayID) { source in
                             catalog.dropOnTaskbar(source, before: item.appKey, display: displayKey, visibleUnpinned: visibleUnpinned)
                         }
                     }

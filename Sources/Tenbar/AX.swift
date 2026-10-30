@@ -45,6 +45,18 @@ enum AX {
     }
 
     @discardableResult
+    static func setFrame(_ element: AXUIElement, _ frame: CGRect) -> Bool {
+        var origin = frame.origin
+        var size = frame.size
+        guard let position = AXValueCreate(.cgPoint, &origin), let sizeValue = AXValueCreate(.cgSize, &size) else { return false }
+        // Position, size, position: some apps clamp the size against the old screen.
+        let first = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, position)
+        AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeValue)
+        let second = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, position)
+        return first == .success || second == .success
+    }
+
+    @discardableResult
     static func perform(_ element: AXUIElement, _ action: String) -> Bool {
         AXUIElementPerformAction(element, action as CFString) == .success
     }

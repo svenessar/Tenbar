@@ -389,8 +389,10 @@ struct StartMenuView: View {
     }
 
     private func launch(_ app: InstalledApp) {
+        let display = menu.openDisplayID
+        uiLog.notice("place source=start display=\(display ?? 0)")
         menu.close()
-        catalog.launch(app)
+        catalog.launch(app, on: display)
     }
 
     private func run(_ action: PowerAction) {

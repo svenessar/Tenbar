@@ -27,6 +27,7 @@ Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swi
   - Bestehende Start-Pins werden einmalig in eine unbenannte Gruppe übernommen.
 - Suche im Startmenü: Das Suchfeld hat beim Öffnen sofort den Fokus, also einfach lostippen. Treffer am Namensanfang stehen vor Wortanfängen und Treffern mitten im Namen. Groß-/Kleinschreibung und Akzente werden ignoriert. ↑/↓ wählt, Enter startet, Escape leert erst die Suche und schließt dann das Menü.
 - Startmenü-Größe pro Bildschirm: Die Ecke oben rechts ändert Höhe und Gesamtbreite, die Trennlinie zwischen „Alle Apps“ und „Angeheftet“ verteilt die Breite. Gespeichert wird pro Monitor über die Display-UUID; zurücksetzen per Rechtsklick auf Start.
+- Fenster erscheinen auf dem Bildschirm, von dem aus sie geöffnet wurden (Startmenü, Klick auf ein Taskleisten-Symbol, „… öffnen“, Untermenü „Neu“): Tenbar wartet bis zu 20 Sekunden auf das neue Fenster der App und verschiebt es dorthin, bei gleicher relativer Position und ggf. verkleinert. Kurz danach auftauchende weitere Fenster (z. B. wiederhergestellte) folgen ebenfalls. Bereits offene Fenster bleiben, wo sie sind.
 - Die Fensterliste aktualisiert sich über `AXObserver`- und `NSWorkspace`-Ereignisse statt durch ständige Abfrage. Ein Sicherheitsabgleich läuft alle 5 Sekunden.
 - Fenster-IDs bleiben stabil, auch wenn sich ein Titel ändert. Die Reihenfolge bleibt dabei erhalten.
 
@@ -63,4 +64,3 @@ swift test         # Tests
 - Option „Gruppieren, wenn die Taskleiste voll ist“
 - Einstellungsfenster (Taskleiste pro Bildschirm, Breiten, Schriftgrößen)
 - „Zuletzt verwendet“ im Startmenü
-- Neue Fenster auf dem Bildschirm der geklickten Taskleiste öffnen

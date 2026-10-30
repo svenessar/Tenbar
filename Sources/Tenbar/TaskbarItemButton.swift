@@ -7,6 +7,7 @@ struct TaskbarItemButton: View {
     let item: TaskbarItem<UUID>
     let windows: [TaskWindow]
     let displayKey: String
+    let displayID: CGDirectDisplayID
     /// Called with the dragged app key when something is dropped onto this item.
     let onDrop: (String) -> Void
     @EnvironmentObject private var tracker: WindowTracker
@@ -41,6 +42,15 @@ struct TaskbarItemButton: View {
             WindowListView(appName: appName, windows: windows) { showWindowList = false }
                 .environmentObject(tracker)
         }
+        // The list only exists for grouped items; once closing leaves ≤1 window it would linger stale.
+        .onChange(of: windows.count) { _, count in
+            if count < 2 { showWindowList = false }
+        }
+    }
+
+    private func openNew(_ command: MenuCommand, pid: pid_t) {
+        tracker.expectNewWindow(appKey: item.appKey, on: displayID)
+        menus.perform(command, pid: pid)
     }
 
     private var runningPID: pid_t? {
@@ -109,7 +119,7 @@ struct TaskbarItemButton: View {
         uiLog.notice("item click app=\(item.appKey, privacy: .public) windows=\(windows.count)")
         switch windows.count {
         case 0:
-            catalog.launch(appKey: item.appKey, fallbackName: appName)
+            catalog.launch(appKey: item.appKey, fallbackName: appName, on: displayID)
         case 1:
             tracker.toggle(windows[0])
         default:
@@ -120,16 +130,16 @@ struct TaskbarItemButton: View {
 
     @ViewBuilder
     private var menu: some View {
-        Button("\(appName) öffnen") { catalog.launch(appKey: item.appKey, fallbackName: appName) }
+        Button("\(appName) öffnen") { catalog.launch(appKey: item.appKey, fallbackName: appName, on: displayID) }
         if let pid = runningPID, let commands = menus.commands[pid], !commands.isEmpty {
             Menu("Neu") {
                 ForEach(commands) { command in
                     if command.children.isEmpty {
-                        Button(command.title) { menus.perform(command, pid: pid) }
+                        Button(command.title) { openNew(command, pid: pid) }
                     } else {
                         Menu(command.title) {
                             ForEach(command.children) { child in
-                                Button(child.title) { menus.perform(child, pid: pid) }
+                                Button(child.title) { openNew(child, pid: pid) }
                             }
                         }
                     }

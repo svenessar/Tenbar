@@ -499,3 +499,50 @@ import Testing
         #expect(NewCommands.shortcutText(key: nil, modifiers: 0) == nil)
     }
 }
+
+@Suite struct WindowPlacementTests {
+    @Test func keepsRelativePosition() {
+        let source = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let target = CGRect(x: 2000, y: 100, width: 2000, height: 1000)
+        let moved = WindowPlacement.frame(CGRect(x: 250, y: 200, width: 500, height: 400), from: source, to: target)
+        #expect(moved == CGRect(x: 2750, y: 400, width: 500, height: 400))
+    }
+
+    @Test func shrinksTooLargeWindows() {
+        let moved = WindowPlacement.frame(CGRect(x: 0, y: 0, width: 3000, height: 1800),
+                                          from: CGRect(x: 0, y: 0, width: 3360, height: 1890),
+                                          to: CGRect(x: -1800, y: 0, width: 1800, height: 1100))
+        #expect(moved == CGRect(x: -1800, y: 0, width: 1800, height: 1100))
+    }
+
+    @Test func usableAreaExcludesTaskbar() {
+        let area = WindowPlacement.usableArea(screen: CGRect(x: 0, y: 0, width: 100, height: 100),
+                                              visible: CGRect(x: 0, y: 0, width: 100, height: 95), barHeight: 40)
+        #expect(area == CGRect(x: 0, y: 40, width: 100, height: 55))
+    }
+
+    @Test func movesOnlyNewWindowsOfTheApp() {
+        var requests = PlacementRequests<Int, String>()
+        let start = Date()
+        requests.expect(appKey: "finder", on: "B", knownWindows: [1], now: start)
+        #expect(requests.place(windows: [(1, "finder", "A"), (7, "mail", "A")], now: start).isEmpty)
+
+        let moves = requests.place(windows: [(1, "finder", "A"), (2, "finder", "A")], now: start.addingTimeInterval(3))
+        #expect(moves.map(\.id) == [2] && moves.map(\.display) == ["B"])
+        // A restored second window shortly after is moved too, but not twice.
+        let more = requests.place(windows: [(2, "finder", "A"), (3, "finder", "A")], now: start.addingTimeInterval(4))
+        #expect(more.map(\.id) == [3])
+        // After the follow-up time, new windows stay where they open.
+        #expect(requests.place(windows: [(4, "finder", "A")], now: start.addingTimeInterval(10)).isEmpty)
+        #expect(requests.isEmpty)
+    }
+
+    @Test func windowAlreadyOnTargetIsNotMovedAndRequestsExpire() {
+        var requests = PlacementRequests<Int, String>()
+        let start = Date()
+        requests.expect(appKey: "x", on: "A", knownWindows: [], now: start)
+        #expect(requests.place(windows: [(1, "x", "A")], now: start).isEmpty)
+        requests.expect(appKey: "y", on: "A", knownWindows: [], now: start)
+        #expect(requests.place(windows: [(5, "y", "B")], now: start.addingTimeInterval(30)).isEmpty)
+    }
+}

@@ -40,6 +40,9 @@ final class WindowTracker: ObservableObject {
     private var safetyTimer: Timer?
     private var refreshPending = false
     private var iconCache: [pid_t: NSImage] = [:]
+    private var placements = PlacementRequests<UUID, CGDirectDisplayID>()
+    private var placementTimer: Timer?
+    private var frontRequests: [String: (display: CGDirectDisplayID, deadline: Date)] = [:]
 
     func start() {
         let center = NSWorkspace.shared.notificationCenter
@@ -164,6 +167,88 @@ final class WindowTracker: ObservableObject {
         let newWindows = order.update(with: discovered).compactMap { found[$0] }
         if newWindows != windows { windows = newWindows }
         if focused != focusedWindowID { focusedWindowID = focused }
+        placeNewWindows()
+    }
+
+    // MARK: Placement
+
+    /// After opening `appKey` from a taskbar or start menu on `displayID`, its windows go to that display:
+    /// the window that comes to front (also an existing one, e.g. from another Space) and new ones.
+    func expectNewWindow(appKey: String, on displayID: CGDirectDisplayID) {
+        let existing = windows.filter { $0.appKey == appKey }
+        placements.expect(appKey: appKey, on: displayID, knownWindows: Set(existing.map(\.id)))
+        frontRequests[appKey] = (displayID, Date().addingTimeInterval(6))
+        uiLog.notice("place expect app=\(appKey, privacy: .public) display=\(displayID) existing=\(existing.count)")
+        // Poll quickly while waiting, so the window doesn't visibly jump late.
+        if placementTimer == nil {
+            placementTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refresh() }
+            }
+        }
+    }
+
+    private func placeNewWindows() {
+        moveFrontWindows()
+        if !placements.isEmpty {
+            let moves = placements.place(windows: windows.map { ($0.id, $0.appKey, $0.displayID) })
+            for move in moves {
+                guard let window = windows.first(where: { $0.id == move.id }) else { continue }
+                moveWindow(window.element, appKey: window.appKey, to: move.display)
+            }
+            if !moves.isEmpty { scheduleRefresh() }
+        }
+        if placements.isEmpty && frontRequests.isEmpty {
+            placementTimer?.invalidate()
+            placementTimer = nil
+        }
+    }
+
+    /// Moves the opened app's front window once the app is frontmost and the window is reachable.
+    private func moveFrontWindows() {
+        let now = Date()
+        let frontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        for (appKey, request) in frontRequests {
+            if request.deadline < now { frontRequests[appKey] = nil; continue }
+            guard let pid = Self.pid(forAppKey: appKey), pid == frontPID else { continue }
+            let appElement = AXUIElementCreateApplication(pid)
+            guard let window = AX.element(appElement, kAXFocusedWindowAttribute) ?? AX.element(appElement, kAXMainWindowAttribute),
+                  AX.isTaskWindow(window), AX.bool(window, kAXMinimizedAttribute) != true else { continue }
+            frontRequests[appKey] = nil
+            if displayID(of: window) != request.display {
+                moveWindow(window, appKey: appKey, to: request.display)
+                scheduleRefresh()
+            }
+        }
+    }
+
+    private static func pid(forAppKey appKey: String) -> pid_t? {
+        if appKey.hasPrefix("pid-") { return pid_t(appKey.dropFirst(4)) }
+        return NSRunningApplication.runningApplications(withBundleIdentifier: appKey).first?.processIdentifier
+    }
+
+    private func displayID(of window: AXUIElement) -> CGDirectDisplayID? {
+        let screens = NSScreen.screens
+        guard let primaryHeight = screens.first?.frame.height, let axFrame = AX.frame(window) else { return nil }
+        let frame = ScreenGeometry.cocoaRect(fromAccessibility: axFrame, primaryScreenHeight: primaryHeight)
+        return ScreenGeometry.bestScreenIndex(for: frame, screens: screens.map(\.frame)).map { screens[$0].displayID }
+    }
+
+    private func moveWindow(_ window: AXUIElement, appKey: String, to displayID: CGDirectDisplayID) {
+        let screens = NSScreen.screens
+        guard let primaryHeight = screens.first?.frame.height,
+              let target = NSScreen.with(displayID: displayID),
+              let axFrame = AX.frame(window) else { return }
+        let frame = ScreenGeometry.cocoaRect(fromAccessibility: axFrame, primaryScreenHeight: primaryHeight)
+        let source = ScreenGeometry.bestScreenIndex(for: frame, screens: screens.map(\.frame)).map { screens[$0] } ?? target
+        guard source.displayID != displayID else { return }
+        func area(_ screen: NSScreen) -> CGRect {
+            WindowPlacement.usableArea(screen: screen.frame, visible: screen.visibleFrame, barHeight: Theme.barHeight)
+        }
+        let placed = WindowPlacement.frame(frame, from: area(source), to: area(target))
+        // The conversion is its own inverse (flip around the primary screen's height).
+        let axPlaced = ScreenGeometry.cocoaRect(fromAccessibility: placed, primaryScreenHeight: primaryHeight)
+        let ok = AX.setFrame(window, axPlaced)
+        uiLog.notice("place move \(appKey, privacy: .public) to display=\(displayID) ok=\(ok)")
     }
 
     // MARK: AXObserver

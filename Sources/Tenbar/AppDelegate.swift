@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        catalog.onOpen = { [tracker] appKey, display in tracker.expectNewWindow(appKey: appKey, on: display) }
         catalog.rescan()
         tracker.start()
         taskbars.start()
