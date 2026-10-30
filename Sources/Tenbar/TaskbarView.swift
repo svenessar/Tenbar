@@ -104,6 +104,13 @@ struct TaskbarView: View {
             ForEach(CombineMode.allCases) { Text($0.title).tag($0) }
         }
         Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
+        Picker("Startmenü-Kacheln", selection: Binding(
+            get: { catalog.startLayoutPerDisplay },
+            set: { catalog.setStartLayoutPerDisplay($0, from: displayKey) }
+        )) {
+            Text("Pro Bildschirm eigene").tag(true)
+            Text("Auf allen Bildschirmen gleich").tag(false)
+        }
         Button("Startmenü-Größe zurücksetzen") {
             startMenu.resetSize(forDisplay: displayID)
         }
@@ -157,7 +164,7 @@ struct BarButton<Label: View>: View {
             .onTapGesture(perform: action)
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { action() }
-            .help(help)
+            .hoverTooltip(help)
     }
 }
 

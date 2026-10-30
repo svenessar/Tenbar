@@ -84,6 +84,7 @@ final class StartMenuController: ObservableObject {
         uiLog.notice("start close auto=\(auto)")
         if auto { lastAutoClose = (displayID, Date()) }
         removeMonitors()
+        TooltipController.shared.hide()
         panel.orderOut(nil)
         openDisplayID = nil
     }

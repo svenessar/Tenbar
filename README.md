@@ -16,6 +16,8 @@ Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swi
 - Startmenü und Taskleiste haben wie bei Windows 10 getrennte Pin-Listen. Im Startmenü bietet das Kontextmenü „An Start anheften“ und „An Taskleiste anheften“.
 - Taskleisten-Pins sind pro Bildschirm getrennt (gespeichert pro Display-UUID). Ein Bildschirm ohne eigene Liste zeigt die bisherigen gemeinsamen Pins, bis dort zum ersten Mal etwas angeheftet, gelöst oder verschoben wird. „An Taskleiste anheften“ im Startmenü wirkt auf die Taskleiste des Bildschirms, auf dem das Startmenü geöffnet ist.
 - Startmenü: alphabetische Liste aller Apps, Kacheln der angehefteten Apps und ein Ein/Aus-Menü (Sperren, Energie sparen, Abmelden, Neu starten, Herunterfahren). Die letzten drei fragen vorher nach.
+- Startmenü-Kacheln pro Bildschirm (Standard) oder auf allen Bildschirmen gleich, umschaltbar per Rechtsklick auf Start → „Startmenü-Kacheln“. Ein Bildschirm ohne eigenes Layout startet mit dem gemeinsamen. Beim Wechsel auf „gleich“ gilt das Layout des Bildschirms, auf dem umgeschaltet wird; die eigenen Layouts bleiben für den Rückweg gespeichert.
+- Tooltips: Beim Überfahren einer Kachel oder eines Taskleisten-Symbols erscheint nach kurzer Zeit der Name darüber (eigenes Panel, weil `.help` in Tenbars nicht aktivierenden Panels nicht erscheint).
 - Gruppen im Startmenü wie bei Windows 10:
   - Überschrift anklicken zum Umbenennen, an der Überschrift ziehen zum Verschieben der Gruppe.
   - Apps auf eine Kachel, eine Überschrift oder freie Fläche einer Gruppe ziehen verschiebt sie in diese Gruppe.

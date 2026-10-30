@@ -209,7 +209,7 @@ struct StartMenuView: View {
             sectionTitle("Angeheftet")
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ForEach(catalog.startLayout.groups) { group in groupView(group) }
+                    ForEach(catalog.startLayout(display: displayKey).groups) { group in groupView(group) }
                     newGroupZone
                 }
                 .padding(.horizontal, 12)
@@ -218,7 +218,7 @@ struct StartMenuView: View {
             .dropDestination(for: String.self) { keys, _ in
                 guard let source = keys.first else { return false }
                 draggedGroup = nil
-                catalog.dropOnStart(source, group: nil)
+                catalog.dropOnStart(source, display: displayKey, group: nil)
                 return true
             }
             if !catalog.statusMessage.isEmpty {
@@ -265,7 +265,7 @@ struct StartMenuView: View {
             indicator: $dropIndicator
         ) { [catalog] source, before in
             draggedGroup = nil
-            catalog.dropOnStart(source, group: group.id, before: before)
+            catalog.dropOnStart(source, display: displayKey, group: group.id, before: before)
         })
     }
 
@@ -302,7 +302,7 @@ struct StartMenuView: View {
             }
             .contextMenu {
                 Button("Gruppe umbenennen") { startRename(group) }
-                Button("Gruppe vom Start lösen") { catalog.removeStartGroup(group.id) }
+                Button("Gruppe vom Start lösen") { catalog.removeStartGroup(group.id, display: displayKey) }
             }
         }
     }
@@ -320,7 +320,7 @@ struct StartMenuView: View {
             .dropDestination(for: String.self) { keys, _ in
                 guard let source = keys.first else { return false }
                 draggedGroup = nil
-                catalog.dropOnStart(source, group: nil)
+                catalog.dropOnStart(source, display: displayKey, group: nil)
                 return true
             } isTargeted: { dropOnNewGroup = $0 }
     }
@@ -334,7 +334,7 @@ struct StartMenuView: View {
     private func finishRename() {
         guard let groupID = editingGroup else { return }
         editingGroup = nil
-        catalog.renameStartGroup(groupID, to: draftName)
+        catalog.renameStartGroup(groupID, to: draftName, display: displayKey)
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -348,7 +348,7 @@ struct StartMenuView: View {
                 Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 24, height: 24)
                 Text(app.name).font(.system(size: 12)).lineLimit(1)
                 Spacer(minLength: 0)
-                if catalog.isPinned(app.id, to: .start) {
+                if catalog.isPinned(app.id, to: .start(display: displayKey)) {
                     Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.white.opacity(0.5))
                 }
             }
@@ -366,6 +366,7 @@ struct StartMenuView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 72)
         }
+        .hoverTooltip(app.name)
         .overlay(alignment: .leading) {
             if let indicator = dropIndicator, !indicator.isGroup, indicator.before == app.id { DropMarker().offset(x: -4) }
         }
@@ -379,8 +380,8 @@ struct StartMenuView: View {
 
     @ViewBuilder
     private func pinMenu(_ app: InstalledApp) -> some View {
-        Button(catalog.isPinned(app.id, to: .start) ? "Von Start lösen" : "An Start anheften") {
-            catalog.togglePin(app.id, .start)
+        Button(catalog.isPinned(app.id, to: .start(display: displayKey)) ? "Von Start lösen" : "An Start anheften") {
+            catalog.togglePin(app.id, .start(display: displayKey))
         }
         Button(catalog.isPinned(app.id, to: .taskbar(display: displayKey)) ? "Von Taskleiste lösen" : "An Taskleiste anheften") {
             catalog.togglePin(app.id, .taskbar(display: displayKey))

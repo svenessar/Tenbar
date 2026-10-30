@@ -3,7 +3,7 @@ import TenbarCore
 
 /// Pin target in the app: the start menu, or the taskbar of one display.
 enum PinTarget: Hashable {
-    case start
+    case start(display: String)
     case taskbar(display: String)
 }
 
@@ -21,7 +21,10 @@ final class AppCatalog: ObservableObject {
     /// Template for displays without an own list (the former global taskbar pins).
     @Published private(set) var taskbarPinTemplate: PinList
     @Published private(set) var taskbarPinsByDisplay: [String: PinList] = [:]
+    /// Shared start tiles; also the template for displays without an own layout.
     @Published private(set) var startLayout: StartLayout
+    @Published private(set) var startLayoutsByDisplay: [String: StartLayout] = [:]
+    @Published private(set) var startLayoutPerDisplay: Bool
     @Published var statusMessage = ""
     @Published var combineMode: CombineMode {
         didSet { preferences.combineMode = combineMode }
@@ -49,6 +52,7 @@ final class AppCatalog: ObservableObject {
     init(preferences: Preferences = Preferences()) {
         self.preferences = preferences
         self.taskbarPinTemplate = preferences.pins(.taskbar) ?? PinList()
+        self.startLayoutPerDisplay = preferences.startLayoutPerDisplay
         if let layout = preferences.startLayout {
             self.startLayout = layout
         } else if let pins = preferences.pins(.start) {
@@ -94,7 +98,7 @@ final class AppCatalog: ObservableObject {
             }
             if preferences.startLayout == nil {
                 let defaults = PinList.defaults(available: records.map(\.id), preferred: Self.preferredPins(.start))
-                updateStart { $0 = StartLayout(pins: defaults) }
+                updateSharedStart { $0 = StartLayout(pins: defaults) }
             }
             isScanning = false
         }
@@ -114,7 +118,7 @@ final class AppCatalog: ObservableObject {
 
     func pins(_ target: PinTarget) -> PinList {
         switch target {
-        case .start: PinList(startLayout.allApps)
+        case .start(let display): PinList(startLayout(display: display).allApps)
         case .taskbar(let display): taskbarPins(display: display)
         }
     }
@@ -125,8 +129,8 @@ final class AppCatalog: ObservableObject {
 
     func togglePin(_ appID: String, _ target: PinTarget) {
         switch target {
-        case .start:
-            updateStart { $0.contains(appID) ? $0.unpin(appID) : $0.pin(appID) }
+        case .start(let display):
+            updateStart(display: display) { $0.contains(appID) ? $0.unpin(appID) : $0.pin(appID) }
         case .taskbar(let display):
             var updated = taskbarPins(display: display)
             updated.toggle(appID)
@@ -154,27 +158,55 @@ final class AppCatalog: ObservableObject {
 
     /// Handles a drop in the start tiles. `source` is an app ID or a group payload.
     /// `group` nil means "below all groups": apps get a new group, groups move to the end.
-    func dropOnStart(_ source: String, group: String?, before target: String? = nil) {
+    func dropOnStart(_ source: String, display: String, group: String?, before target: String? = nil) {
         uiLog.notice("start drop source=\(source, privacy: .public) group=\(group ?? "nil", privacy: .public) before=\(target ?? "nil", privacy: .public)")
         if source.hasPrefix(StartLayout.groupPayloadPrefix) {
             let groupID = String(source.dropFirst(StartLayout.groupPayloadPrefix.count))
-            updateStart { $0.moveGroup(groupID, before: group) }
+            updateStart(display: display) { $0.moveGroup(groupID, before: group) }
         } else if let group {
-            updateStart { $0.move(source, toGroup: group, before: target) }
+            updateStart(display: display) { $0.move(source, toGroup: group, before: target) }
         } else {
-            updateStart { $0.moveToNewGroup(source) }
+            updateStart(display: display) { $0.moveToNewGroup(source) }
         }
     }
 
-    func renameStartGroup(_ groupID: String, to name: String) {
-        updateStart { $0.rename(groupID, to: name) }
+    func renameStartGroup(_ groupID: String, to name: String, display: String) {
+        updateStart(display: display) { $0.rename(groupID, to: name) }
     }
 
-    func removeStartGroup(_ groupID: String) {
-        updateStart { $0.removeGroup(groupID) }
+    func removeStartGroup(_ groupID: String, display: String) {
+        updateStart(display: display) { $0.removeGroup(groupID) }
     }
 
-    private func updateStart(_ change: (inout StartLayout) -> Void) {
+    /// Switching to "same everywhere" adopts the tiles of `display` for all displays.
+    /// Own layouts stay stored, so switching back restores them.
+    func setStartLayoutPerDisplay(_ perDisplay: Bool, from display: String) {
+        guard perDisplay != startLayoutPerDisplay else { return }
+        if !perDisplay {
+            let current = startLayout(display: display)
+            updateSharedStart { $0 = current }
+        }
+        startLayoutPerDisplay = perDisplay
+        preferences.startLayoutPerDisplay = perDisplay
+    }
+
+    /// The start tiles shown on a display (its own layout, or the shared one).
+    func startLayout(display: String) -> StartLayout {
+        guard startLayoutPerDisplay else { return startLayout }
+        if let layout = startLayoutsByDisplay[display] { return layout }
+        return preferences.startLayout(forDisplay: display) ?? startLayout
+    }
+
+    /// The first change on a display copies the shared layout, so other displays stay untouched.
+    private func updateStart(display: String, _ change: (inout StartLayout) -> Void) {
+        guard startLayoutPerDisplay else { return updateSharedStart(change) }
+        var layout = startLayout(display: display)
+        change(&layout)
+        startLayoutsByDisplay[display] = layout
+        preferences.setStartLayout(layout, forDisplay: display)
+    }
+
+    private func updateSharedStart(_ change: (inout StartLayout) -> Void) {
         var layout = startLayout
         change(&layout)
         guard layout != startLayout || preferences.startLayout == nil else { return }

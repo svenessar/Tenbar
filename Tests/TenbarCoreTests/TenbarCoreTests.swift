@@ -58,6 +58,25 @@ import Testing
 }
 
 @Suite struct PreferencesTests {
+    @Test func startLayoutPerDisplayRoundTrip() throws {
+        let suite = "TenbarTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = Preferences(defaults: defaults)
+
+        #expect(preferences.startLayoutPerDisplay)
+        preferences.startLayoutPerDisplay = false
+        #expect(!preferences.startLayoutPerDisplay)
+
+        #expect(preferences.startLayout(forDisplay: "A") == nil)
+        let layout = StartLayout(pins: PinList(["x", "y"]))
+        preferences.setStartLayout(layout, forDisplay: "A")
+        #expect(preferences.startLayout(forDisplay: "A") == layout)
+        #expect(preferences.startLayout(forDisplay: "B") == nil)
+        preferences.setStartLayout(nil, forDisplay: "A")
+        #expect(preferences.startLayout(forDisplay: "A") == nil)
+    }
+
     @Test func pinsRoundTripAndDistinguishUninitialized() throws {
         let suite = "TenbarTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))

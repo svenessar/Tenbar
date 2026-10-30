@@ -13,6 +13,8 @@ public struct Preferences {
         static let startMenuSizes = "StartMenuSizes"
         static let taskbarPinsByDisplay = "TaskbarPinsByDisplay"
         static let startLayout = "StartLayout"
+        static let startLayoutsByDisplay = "StartLayoutsByDisplay"
+        static let startLayoutPerDisplay = "StartLayoutPerDisplay"
 
         static func pinnedAppIDs(_ location: PinLocation) -> String {
             switch location {
@@ -66,6 +68,24 @@ public struct Preferences {
     public var startLayout: StartLayout? {
         get { defaults.data(forKey: Key.startLayout).flatMap { try? JSONDecoder().decode(StartLayout.self, from: $0) } }
         nonmutating set { defaults.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: Key.startLayout) }
+    }
+
+    /// Each display has its own start tiles (true, default) or all share `startLayout`.
+    public var startLayoutPerDisplay: Bool {
+        get { defaults.object(forKey: Key.startLayoutPerDisplay) as? Bool ?? true }
+        nonmutating set { defaults.set(newValue, forKey: Key.startLayoutPerDisplay) }
+    }
+
+    /// Start tiles of one display. nil means the display has no own layout yet and uses `startLayout`.
+    public func startLayout(forDisplay key: String) -> StartLayout? {
+        guard let data = (defaults.dictionary(forKey: Key.startLayoutsByDisplay) as? [String: Data])?[key] else { return nil }
+        return try? JSONDecoder().decode(StartLayout.self, from: data)
+    }
+
+    public func setStartLayout(_ layout: StartLayout?, forDisplay key: String) {
+        var all = defaults.dictionary(forKey: Key.startLayoutsByDisplay) as? [String: Data] ?? [:]
+        all[key] = layout.flatMap { try? JSONEncoder().encode($0) }
+        defaults.set(all, forKey: Key.startLayoutsByDisplay)
     }
 
     /// Taskbar pins of one display. nil means the display has no own list yet and uses `pins(.taskbar)`.
