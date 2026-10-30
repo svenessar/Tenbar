@@ -16,7 +16,7 @@ struct TaskbarView: View {
     let isPrimary: Bool
     @EnvironmentObject private var tracker: WindowTracker
     @EnvironmentObject private var catalog: AppCatalog
-    @State private var showStartMenu = false
+    @EnvironmentObject private var startMenu: StartMenuController
     @State private var dropAtEnd = false
 
     private var displayKey: String { stableDisplayKey(displayID) }
@@ -54,9 +54,6 @@ struct TaskbarView: View {
         .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.12)).frame(height: 0.5) }
         .environment(\.colorScheme, .dark)
         .animation(.snappy(duration: 0.15), value: items.map(\.id))
-        .onChange(of: showStartMenu) { _, isShown in
-            if isShown { catalog.rescan() }
-        }
     }
 
     private var windowsOnDisplay: [TaskWindow] {
@@ -81,9 +78,8 @@ struct TaskbarView: View {
     }
 
     private var startButton: some View {
-        BarButton(isActive: showStartMenu, help: "Start") {
-            NSApp.activate()
-            showStartMenu.toggle()
+        BarButton(isActive: startMenu.openDisplayID == displayID, help: "Start") {
+            startMenu.toggle(on: displayID)
         } label: {
             Image(systemName: "square.grid.2x2.fill").font(.system(size: 17)).frame(width: 46)
         }
@@ -93,14 +89,10 @@ struct TaskbarView: View {
             }
             Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
             Button("Startmenü-Größe zurücksetzen") {
-                catalog.setStartMenuSize(nil, forDisplay: displayKey)
+                startMenu.resetSize(forDisplay: displayID)
             }
             Divider()
             Button("Tenbar beenden") { NSApp.terminate(nil) }
-        }
-        .popover(isPresented: $showStartMenu, arrowEdge: .top) {
-            StartMenuView(isPresented: $showStartMenu, displayID: displayID)
-                .environmentObject(catalog)
         }
     }
 

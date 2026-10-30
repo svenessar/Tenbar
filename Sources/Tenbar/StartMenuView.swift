@@ -3,24 +3,23 @@ import SwiftUI
 import TenbarCore
 
 struct StartMenuView: View {
-    @Binding var isPresented: Bool
-    let displayID: CGDirectDisplayID
     @EnvironmentObject private var catalog: AppCatalog
+    @EnvironmentObject private var menu: StartMenuController
     @State private var dropTargetTile: String?
-    @State private var size: StartMenuSize?
     @State private var dragStart: (mouse: NSPoint, size: StartMenuSize)?
 
     var body: some View {
-        let size = currentSize
+        let size = menu.size
         HStack(spacing: 0) {
             rail
             allApps.frame(width: size.allAppsWidth)
             pinned.frame(width: size.pinnedWidth)
                 .overlay(alignment: .leading) { splitHandle }
         }
-        .frame(height: size.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .topTrailing) { cornerHandle }
         .background(Theme.startMenuBackground)
+        .overlay { Rectangle().strokeBorder(Color.white.opacity(0.08), lineWidth: 1) }
         .foregroundStyle(.white.opacity(0.94))
         .environment(\.colorScheme, .dark)
         .transaction { $0.animation = nil }
@@ -28,31 +27,20 @@ struct StartMenuView: View {
 
     // MARK: Size
 
-    private var displayKey: String { stableDisplayKey(displayID) }
+    private var displayKey: String { menu.displayKey ?? "" }
 
-    private var screenLimits: (width: Double, height: Double) {
-        guard let screen = NSScreen.with(displayID: displayID) else { return (1600, 1000) }
-        return (screen.frame.width - 16, screen.frame.height - Theme.barHeight - 32)
-    }
-
-    private var currentSize: StartMenuSize {
-        let limits = screenLimits
-        return (size ?? catalog.startMenuSize(forDisplay: displayKey))
-            .clamped(maxTotalWidth: limits.width, maxHeight: limits.height)
-    }
-
-    /// Tracks the drag in screen coordinates, because the popover window itself moves while resizing.
+    /// Tracks the drag in screen coordinates, so it stays exact while the window resizes.
     private func resizeGesture(_ apply: @escaping (_ start: StartMenuSize, _ dx: Double, _ dy: Double) -> StartMenuSize) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .global)
             .onChanged { _ in
                 let mouse = NSEvent.mouseLocation
-                if dragStart == nil { dragStart = (mouse, currentSize) }
+                if dragStart == nil { dragStart = (mouse, menu.size) }
                 guard let start = dragStart else { return }
-                size = apply(start.size, mouse.x - start.mouse.x, mouse.y - start.mouse.y)
+                menu.resize(to: apply(start.size, mouse.x - start.mouse.x, mouse.y - start.mouse.y))
             }
             .onEnded { _ in
                 dragStart = nil
-                catalog.setStartMenuSize(currentSize, forDisplay: displayKey)
+                menu.saveSize()
             }
     }
 
@@ -72,8 +60,8 @@ struct StartMenuView: View {
                 if inside { Self.cornerCursor.push() } else { NSCursor.pop() }
             }
             .gesture(resizeGesture { start, dx, dy in
-                let limits = screenLimits
-                return start.resized(width: dx, height: dy, maxTotalWidth: limits.width, maxHeight: limits.height)
+                // The controller clamps to the screen.
+                start.resized(width: dx, height: dy, maxTotalWidth: .infinity, maxHeight: .infinity)
             })
             .help("Ziehen, um Höhe und Breite des Startmenüs zu ändern")
     }
@@ -214,12 +202,12 @@ struct StartMenuView: View {
     }
 
     private func launch(_ app: InstalledApp) {
-        isPresented = false
+        menu.close()
         catalog.launch(app)
     }
 
     private func run(_ action: PowerAction) {
-        isPresented = false
+        menu.close()
         if let error = PowerController.perform(action) { catalog.statusMessage = error }
     }
 }

@@ -25,12 +25,14 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
 final class TaskbarController {
     private let tracker: WindowTracker
     private let catalog: AppCatalog
+    private let startMenu: StartMenuController
     private var panels: [CGDirectDisplayID: TaskbarPanel] = [:]
     private var token: NSObjectProtocol?
 
     init(tracker: WindowTracker, catalog: AppCatalog) {
         self.tracker = tracker
         self.catalog = catalog
+        self.startMenu = StartMenuController(catalog: catalog)
     }
 
     func start() {
@@ -38,6 +40,7 @@ final class TaskbarController {
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
+                self?.startMenu.close()
                 self?.syncPanels()
                 self?.tracker.scheduleRefresh()
             }
@@ -63,6 +66,7 @@ final class TaskbarController {
             let root = TaskbarView(displayID: id, isPrimary: id == primaryID)
                 .environmentObject(tracker)
                 .environmentObject(catalog)
+                .environmentObject(startMenu)
             panel.contentView = FirstMouseHostingView(rootView: root)
             panel.orderFrontRegardless()
             panels[id] = panel
