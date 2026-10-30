@@ -28,8 +28,9 @@ public struct TaskbarItem<WindowID: Hashable & Sendable>: Identifiable, Equatabl
 }
 
 public enum TaskbarLayout {
-    /// Builds the taskbar items: pinned apps first (in pin order), then unpinned apps
-    /// in `unpinnedOrder`, then any remaining apps in the order their first window appeared.
+    /// Builds the taskbar items: pinned apps that aren't running first (in pin order), then the
+    /// running apps — pinned ones in pin order, then unpinned ones in `unpinnedOrder`, then any
+    /// remaining apps in the order their first window appeared.
     public static func items<WindowID>(
         pinnedAppKeys: [String],
         windows: [(id: WindowID, appKey: String)],
@@ -51,7 +52,9 @@ public enum TaskbarLayout {
             let left = rank[lhs.element] ?? Int.max, right = rank[rhs.element] ?? Int.max
             return left == right ? lhs.offset < rhs.offset : left < right
         }.map(\.element)
-        let orderedApps = pinned + sortedUnpinned
+        let closedPinned = pinned.filter { windowsByApp[$0] == nil }
+        let runningPinned = pinned.filter { windowsByApp[$0] != nil }
+        let orderedApps = closedPinned + runningPinned + sortedUnpinned
 
         return orderedApps.flatMap { appKey -> [TaskbarItem<WindowID>] in
             let ids = windowsByApp[appKey] ?? []

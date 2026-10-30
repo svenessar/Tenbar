@@ -193,6 +193,15 @@ import Testing
         #expect(items.map(\.representsApp) == [true, false, false, false, false])
     }
 
+    @Test func closedPinsComeBeforeRunningApps() {
+        for mode in CombineMode.allCases {
+            let items = TaskbarLayout.items(pinnedAppKeys: ["notes", "finder", "safari", "music"], windows: windows, mode: mode)
+            #expect(items.map(\.appKey) == ["finder", "music", "notes", "safari", "mail"].flatMap { key in
+                mode == .never && key == "mail" ? [key, key] : [key]
+            })
+        }
+    }
+
     @Test func itemIDsAreUnique() {
         for mode in CombineMode.allCases {
             let items = TaskbarLayout.items(pinnedAppKeys: ["mail"], windows: windows, mode: mode)
