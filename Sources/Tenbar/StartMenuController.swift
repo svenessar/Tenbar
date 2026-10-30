@@ -29,6 +29,7 @@ final class StartMenuController: ObservableObject {
 
     private let catalog: AppCatalog
     private let panel = StartMenuPanel()
+    private var hasContent = false
     private var monitors: [Any] = []
     private var spaceObserver: NSObjectProtocol?
     private var lastAutoClose: (display: CGDirectDisplayID, time: Date)?
@@ -40,6 +41,7 @@ final class StartMenuController: ObservableObject {
     var displayKey: String? { openDisplayID.map(stableDisplayKey) }
 
     func toggle(on displayID: CGDirectDisplayID) {
+        uiLog.notice("start toggle display=\(displayID) open=\(String(describing: self.openDisplayID), privacy: .public)")
         if openDisplayID == displayID {
             close()
             return
@@ -59,18 +61,22 @@ final class StartMenuController: ObservableObject {
         size = clamp(catalog.startMenuSize(forDisplay: stableDisplayKey(displayID)), on: screen)
         catalog.rescan()
 
-        if panel.contentView == nil {
+        // NSPanel always has a default (empty) content view, so track the hosting view explicitly.
+        if !hasContent {
             let host = NSHostingView(rootView: StartMenuView().environmentObject(catalog).environmentObject(self))
             host.sizingOptions = []
             panel.contentView = host
+            hasContent = true
         }
         applyFrame()
         panel.makeKeyAndOrderFront(nil)
+        uiLog.notice("start open frame=\(String(describing: self.panel.frame), privacy: .public) content=\(String(describing: type(of: self.panel.contentView!)), privacy: .public) visible=\(self.panel.isVisible)")
         installMonitors()
     }
 
     func close(auto: Bool = false) {
         guard let displayID = openDisplayID else { return }
+        uiLog.notice("start close auto=\(auto)")
         if auto { lastAutoClose = (displayID, Date()) }
         removeMonitors()
         panel.orderOut(nil)

@@ -98,6 +98,7 @@ struct TaskbarItemButton: View {
     }
 
     private func click() {
+        uiLog.notice("item click app=\(item.appKey, privacy: .public) windows=\(windows.count)")
         switch windows.count {
         case 0:
             catalog.launch(appKey: item.appKey, fallbackName: appName)

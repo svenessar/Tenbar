@@ -42,8 +42,7 @@ struct TaskbarView: View {
                 }
                 // Fill the visible width so a right-click on empty space hits the bar's settings menu.
                 .frame(minWidth: scrollWidth, maxHeight: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .contextMenu { settingsMenu }
+                .background { emptySpaceMenu }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { scrollWidth = $0 }
             .dropDestination(for: String.self) { keys, _ in
@@ -55,8 +54,7 @@ struct TaskbarView: View {
         }
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .contextMenu { settingsMenu }
+        .background { emptySpaceMenu }
         .background(.ultraThinMaterial)
         .background(Theme.barBackground)
         .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.12)).frame(height: 0.5) }
@@ -92,6 +90,11 @@ struct TaskbarView: View {
             Image(systemName: "square.grid.2x2.fill").font(.system(size: 17)).frame(width: 46)
         }
         .contextMenu { settingsMenu }
+    }
+
+    /// Sits behind the buttons (not around them), so buttons keep their own context menus.
+    private var emptySpaceMenu: some View {
+        Color.clear.contentShape(Rectangle()).contextMenu { settingsMenu }
     }
 
     /// Taskbar settings, opened by right-clicking the start button or empty taskbar space.
