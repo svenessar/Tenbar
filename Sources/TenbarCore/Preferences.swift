@@ -9,6 +9,7 @@ public enum PinLocation: String, CaseIterable, Sendable {
 public struct Preferences {
     private enum Key {
         static let combineMode = "CombineMode"
+        static let showLabels = "ShowLabels"
 
         static func pinnedAppIDs(_ location: PinLocation) -> String {
             switch location {
@@ -50,5 +51,11 @@ public struct Preferences {
     public var combineMode: CombineMode {
         get { defaults.string(forKey: Key.combineMode).flatMap(CombineMode.init(rawValue:)) ?? .always }
         nonmutating set { defaults.set(newValue.rawValue, forKey: Key.combineMode) }
+    }
+
+    /// Show names next to icons of running apps. Defaults to true.
+    public var showLabels: Bool {
+        get { defaults.object(forKey: Key.showLabels) as? Bool ?? true }
+        nonmutating set { defaults.set(newValue, forKey: Key.showLabels) }
     }
 }

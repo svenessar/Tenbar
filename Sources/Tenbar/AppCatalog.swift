@@ -18,6 +18,9 @@ final class AppCatalog: ObservableObject {
     @Published var combineMode: CombineMode {
         didSet { preferences.combineMode = combineMode }
     }
+    @Published var showLabels: Bool {
+        didSet { preferences.showLabels = showLabels }
+    }
     /// Order of running, unpinned apps (in memory only, like Windows 10).
     @Published private(set) var unpinnedOrder: [String] = []
 
@@ -40,6 +43,7 @@ final class AppCatalog: ObservableObject {
         self.taskbarPins = preferences.pins(.taskbar) ?? PinList()
         self.startPins = preferences.pins(.start) ?? PinList()
         self.combineMode = preferences.combineMode
+        self.showLabels = preferences.showLabels
     }
 
     func app(id: String) -> InstalledApp? {

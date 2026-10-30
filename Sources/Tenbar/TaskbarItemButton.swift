@@ -18,10 +18,10 @@ struct TaskbarItemButton: View {
         BarButton(
             isActive: focused || showWindowList,
             indicator: windows.isEmpty ? .none : (focused ? .focused : .running),
-            help: item.representsApp ? appName : (windows.first?.title ?? appName),
+            help: windows.count == 1 ? windows[0].title : appName,
             action: click
         ) {
-            if item.representsApp { appIconLabel } else { windowLabel }
+            if windows.isEmpty || !catalog.showLabels { iconOnlyLabel } else { namedLabel }
         }
         .overlay(alignment: .leading) {
             if isDropTarget { DropMarker().offset(x: -2) }
@@ -48,7 +48,12 @@ struct TaskbarItemButton: View {
         return catalog.app(id: item.appKey).map(catalog.icon(for:))
     }
 
-    private var appIconLabel: some View {
+    /// Single window: its title. Several windows: the app name (count shown as badge).
+    private var labelText: String {
+        windows.count == 1 ? windows[0].title : appName
+    }
+
+    private var iconWithBadge: some View {
         ZStack(alignment: .topTrailing) {
             iconImage(size: 24)
             if windows.count > 1 {
@@ -59,18 +64,27 @@ struct TaskbarItemButton: View {
                     .offset(x: 7, y: -5)
             }
         }
-        .frame(width: 46)
     }
 
-    private var windowLabel: some View {
+    private var iconOnlyLabel: some View {
+        iconWithBadge
+            .frame(width: 46)
+            .opacity(allMinimized ? 0.6 : 1)
+    }
+
+    private var namedLabel: some View {
         HStack(spacing: 8) {
-            iconImage(size: 22)
-            Text(windows.first?.title ?? appName).font(.system(size: 11)).lineLimit(1).truncationMode(.tail)
+            iconWithBadge
+            Text(labelText).font(.system(size: 11)).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
         .frame(width: Theme.windowButtonWidth)
-        .opacity(windows.first?.isMinimized == true ? 0.6 : 1)
+        .opacity(allMinimized ? 0.6 : 1)
+    }
+
+    private var allMinimized: Bool {
+        !windows.isEmpty && windows.allSatisfy(\.isMinimized)
     }
 
     @ViewBuilder

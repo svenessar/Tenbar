@@ -167,6 +167,9 @@ import Testing
         #expect(preferences.combineMode == .always)
         preferences.combineMode = .never
         #expect(Preferences(defaults: defaults).combineMode == .never)
+        #expect(preferences.showLabels)
+        preferences.showLabels = false
+        #expect(Preferences(defaults: defaults).showLabels == false)
     }
 }
 

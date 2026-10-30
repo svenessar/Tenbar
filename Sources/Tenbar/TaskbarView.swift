@@ -89,6 +89,7 @@ struct TaskbarView: View {
             Picker("Taskleisten-Schaltflächen", selection: $catalog.combineMode) {
                 ForEach(CombineMode.allCases) { Text($0.title).tag($0) }
             }
+            Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
             Divider()
             Button("Tenbar beenden") { NSApp.terminate(nil) }
         }
