@@ -1,0 +1,49 @@
+# Tenbar
+
+Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swift Package.
+
+## Stand (Kern)
+
+- Eine Taskleiste pro Bildschirm. Jedes Fenster erscheint auf dem Bildschirm, auf dem es überwiegend liegt.
+- Klick auf ein Fenster holt es nach vorn; ist es bereits aktiv, wird es minimiert.
+- Kontextmenü: Fenster schließen, App beenden, an die Taskleiste anheften oder lösen.
+- Angeheftete Apps erscheinen links als Symbole und zeigen an, ob die App läuft.
+- Startmenü: alphabetische Liste aller Apps, Kacheln der angehefteten Apps und ein Ein/Aus-Menü (Sperren, Energie sparen, Abmelden, Neu starten, Herunterfahren). Die letzten drei fragen vorher nach.
+- Die Fensterliste aktualisiert sich über `AXObserver`- und `NSWorkspace`-Ereignisse statt durch ständige Abfrage. Ein Sicherheitsabgleich läuft alle 5 Sekunden.
+- Fenster-IDs bleiben stabil, auch wenn sich ein Titel ändert. Die Reihenfolge bleibt dabei erhalten.
+
+## Aufbau
+
+```
+Sources/TenbarCore/   Reine Logik, getestet (Reihenfolge, Anheften, Einstellungen, Geometrie, App-Suche, Energieaktionen)
+Sources/Tenbar/       App: WindowTracker (Bedienungshilfen-API), AppCatalog, Taskleisten-Panels, SwiftUI-Ansichten
+Tests/                Swift-Testing-Tests für TenbarCore
+Resources/Info.plist
+build.sh
+```
+
+## Entwickeln und bauen
+
+Voraussetzungen: macOS 14 oder neuer und Xcode bzw. die Command Line Tools.
+
+```sh
+swift build        # Debug-Build
+swift test         # Tests
+./build.sh         # dist/Tenbar.app (Universal) + dist/Tenbar-<Version>.zip
+```
+
+`build.sh` signiert ad hoc. Mit `SIGN_IDENTITY="Developer ID Application: …" ./build.sh` wird stattdessen mit einem eigenen Zertifikat signiert.
+
+## Berechtigungen
+
+- **Bedienungshilfen:** nötig für die Fensterliste. Aktivieren unter Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen.
+  Bei Ad-hoc-Signatur ändert sich die Signatur mit jedem Build, deshalb muss der Zugriff nach jedem Neubau neu erteilt werden. Mit einem festen Zertifikat (`SIGN_IDENTITY`) bleibt er erhalten.
+- **Automation (System Events):** macOS fragt bei der ersten Energieaktion danach.
+
+## Nächste Ausbaustufen
+
+- Fenster derselben App gruppieren
+- Reihenfolge per Drag & Drop ändern
+- Einstellungsfenster (Taskleiste pro Bildschirm, Breiten, Schriftgrößen)
+- „Zuletzt verwendet“ im Startmenü und Größe des Startmenüs einstellbar
+- Neue Fenster auf dem Bildschirm der geklickten Taskleiste öffnen
