@@ -149,6 +149,11 @@ import Testing
         let names = AppScanner.scan(roots: [root], extras: []).map(\.name)
         #expect(names == ["alpha", "Zeta"])
     }
+
+    @Test func findsSafariInCryptex() throws {
+        try #require(FileManager.default.fileExists(atPath: "/System/Cryptexes/App/System/Applications/Safari.app"))
+        #expect(AppScanner.scan().contains { $0.id == "com.apple.Safari" })
+    }
 }
 
 @Suite struct TaskbarLayoutTests {

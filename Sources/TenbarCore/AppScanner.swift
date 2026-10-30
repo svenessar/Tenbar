@@ -18,6 +18,8 @@ public enum AppScanner {
         [
             URL(fileURLWithPath: "/Applications"),
             URL(fileURLWithPath: "/System/Applications"),
+            // Safari and other cryptex apps; their /Applications symlinks are flagged hidden.
+            URL(fileURLWithPath: "/System/Cryptexes/App/System/Applications"),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications"),
         ]
     }
