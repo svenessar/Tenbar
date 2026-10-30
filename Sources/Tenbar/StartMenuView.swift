@@ -5,10 +5,17 @@ import TenbarCore
 struct StartMenuView: View {
     @EnvironmentObject private var catalog: AppCatalog
     @EnvironmentObject private var menu: StartMenuController
-    @State private var dropTargetTile: String?
     @State private var dragStart: (mouse: NSPoint, size: StartMenuSize)?
     @State private var selection = 0
     @FocusState private var searchFocused: Bool
+    @State private var dropIndicator: TileDropIndicator?
+    @State private var draggedGroup: String?
+    @State private var tileFrames: [String: CGRect] = [:]
+    @State private var headerMaxY: [String: CGFloat] = [:]
+    @State private var dropOnNewGroup = false
+    @State private var editingGroup: String?
+    @State private var draftName = ""
+    @FocusState private var renameFocused: Bool
 
     var body: some View {
         let size = menu.size
@@ -153,7 +160,7 @@ struct StartMenuView: View {
             }
         }
         .onChange(of: menu.searchText) { _, _ in selection = 0 }
-        .onChange(of: menu.openCount) { _, _ in focusSearch() }
+        .onChange(of: menu.openCount) { _, _ in draggedGroup = nil; dropIndicator = nil; focusSearch() }
         .onAppear { focusSearch() }
     }
 
@@ -201,15 +208,17 @@ struct StartMenuView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionTitle("Angeheftet")
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 6)], spacing: 6) {
-                    ForEach(catalog.startPinnedApps) { app in tile(app) }
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(catalog.startLayout.groups) { group in groupView(group) }
+                    newGroupZone
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
             }
             .dropDestination(for: String.self) { keys, _ in
                 guard let source = keys.first else { return false }
-                catalog.dropOnStart(source, before: nil)
+                draggedGroup = nil
+                catalog.dropOnStart(source, group: nil)
                 return true
             }
             if !catalog.statusMessage.isEmpty {
@@ -218,6 +227,114 @@ struct StartMenuView: View {
             }
         }
         .background(Color.white.opacity(0.03))
+    }
+
+    private func groupView(_ group: StartGroup) -> some View {
+        let apps = catalog.apps(in: group)
+        let space = "group-\(group.id)"
+        return VStack(alignment: .leading, spacing: 6) {
+            groupHeader(group)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(space)).maxY } action: { headerMaxY[group.id] = $0 }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 6)], spacing: 6) {
+                ForEach(apps) { app in
+                    tile(app, group: group)
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { tileFrames[app.id] = $0 }
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // "Append" marker after the last tile.
+                if let indicator = dropIndicator, indicator.group == group.id, indicator.before == nil, !indicator.isGroup {
+                    Capsule().fill(Color.accentColor).frame(height: 3).offset(y: 6)
+                }
+            }
+        }
+        .overlay(alignment: .top) {
+            if let indicator = dropIndicator, indicator.group == group.id, indicator.isGroup {
+                Capsule().fill(Color.accentColor).frame(height: 3).offset(y: -8)
+            }
+        }
+        .contentShape(Rectangle())
+        .coordinateSpace(.named(space))
+        // One drop target per group: the insertion point comes from the mouse position, because
+        // views that are themselves draggable don't receive drops reliably.
+        .onDrop(of: [.text], delegate: GroupDropDelegate(
+            groupID: group.id,
+            tiles: apps.compactMap { app in tileFrames[app.id].map { (id: app.id, frame: $0) } },
+            headerMaxY: headerMaxY[group.id] ?? 0,
+            isGroupDrag: draggedGroup != nil,
+            indicator: $dropIndicator
+        ) { [catalog] source, before in
+            draggedGroup = nil
+            catalog.dropOnStart(source, group: group.id, before: before)
+        })
+    }
+
+    @ViewBuilder
+    private func groupHeader(_ group: StartGroup) -> some View {
+        if editingGroup == group.id {
+            TextField("Gruppe benennen", text: $draftName)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12, weight: .semibold))
+                .focused($renameFocused)
+                .onSubmit { finishRename() }
+                .onChange(of: renameFocused) { _, focused in if !focused { finishRename() } }
+                .padding(.horizontal, 4).frame(height: 24)
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 3))
+        } else {
+            HoverButton(action: { startRename(group) }) {
+                HStack(spacing: 6) {
+                    Text(group.name.isEmpty ? "Gruppe benennen" : group.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(group.name.isEmpty ? .white.opacity(0.4) : .white.opacity(0.94))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "line.3.horizontal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.35))
+                }
+                .padding(.horizontal, 4).frame(height: 24)
+            }
+            .help("Klicken zum Umbenennen, ziehen zum Verschieben der Gruppe")
+            .onDrag {
+                draggedGroup = group.id
+                return NSItemProvider(object: (StartLayout.groupPayloadPrefix + group.id) as NSString)
+            } preview: {
+                Text(group.name.isEmpty ? "Gruppe" : group.name).font(.system(size: 12, weight: .semibold))
+                    .padding(6).background(Theme.startMenuBackground)
+            }
+            .contextMenu {
+                Button("Gruppe umbenennen") { startRename(group) }
+                Button("Gruppe vom Start lösen") { catalog.removeStartGroup(group.id) }
+            }
+        }
+    }
+
+    private var newGroupZone: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            .foregroundStyle(.white.opacity(dropOnNewGroup ? 0.6 : 0.15))
+            .background(dropOnNewGroup ? Theme.hover : .clear, in: RoundedRectangle(cornerRadius: 4))
+            .frame(height: 44)
+            .overlay {
+                Text("Hierher ziehen für eine neue Gruppe")
+                    .font(.system(size: 10)).foregroundStyle(.white.opacity(0.4))
+            }
+            .dropDestination(for: String.self) { keys, _ in
+                guard let source = keys.first else { return false }
+                draggedGroup = nil
+                catalog.dropOnStart(source, group: nil)
+                return true
+            } isTargeted: { dropOnNewGroup = $0 }
+    }
+
+    private func startRename(_ group: StartGroup) {
+        draftName = group.name
+        editingGroup = group.id
+        DispatchQueue.main.async { renameFocused = true }
+    }
+
+    private func finishRename() {
+        guard let groupID = editingGroup else { return }
+        editingGroup = nil
+        catalog.renameStartGroup(groupID, to: draftName)
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -241,7 +358,7 @@ struct StartMenuView: View {
         .contextMenu { pinMenu(app) }
     }
 
-    private func tile(_ app: InstalledApp) -> some View {
+    private func tile(_ app: InstalledApp, group: StartGroup) -> some View {
         HoverButton(action: { launch(app) }, idleBackground: Color.white.opacity(0.07)) {
             VStack(spacing: 6) {
                 Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 32, height: 32)
@@ -250,16 +367,9 @@ struct StartMenuView: View {
             .frame(maxWidth: .infinity, minHeight: 72)
         }
         .overlay(alignment: .leading) {
-            if dropTargetTile == app.id { DropMarker().offset(x: -4) }
+            if let indicator = dropIndicator, !indicator.isGroup, indicator.before == app.id { DropMarker().offset(x: -4) }
         }
         .draggable(app.id) { dragPreview(app) }
-        .dropDestination(for: String.self) { keys, _ in
-            guard let source = keys.first else { return false }
-            catalog.dropOnStart(source, before: app.id)
-            return true
-        } isTargeted: { targeted in
-            if targeted { dropTargetTile = app.id } else if dropTargetTile == app.id { dropTargetTile = nil }
-        }
         .contextMenu { pinMenu(app) }
     }
 
@@ -288,6 +398,59 @@ struct StartMenuView: View {
     }
 }
 
+struct TileDropIndicator: Equatable {
+    var group: String
+    var before: String?
+    var isGroup: Bool
+}
+
+/// Drop target for a whole start group; tracks the insertion point while dragging.
+struct GroupDropDelegate: DropDelegate {
+    let groupID: String
+    let tiles: [(id: String, frame: CGRect)]
+    let headerMaxY: CGFloat
+    let isGroupDrag: Bool
+    @Binding var indicator: TileDropIndicator?
+    let perform: @MainActor (String, String?) -> Void
+
+    private func target(_ info: DropInfo) -> String? {
+        TileDrop.target(location: info.location, tiles: tiles, headerMaxY: headerMaxY)
+    }
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.text]) }
+
+    func dropEntered(info: DropInfo) { update(info) }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        update(info)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        if indicator?.group == groupID { indicator = nil }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        let before = target(info)
+        indicator = nil
+        guard let provider = info.itemProviders(for: [.text]).first else { return false }
+        let perform = perform
+        _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let source = object as? NSString else { return }
+            let sourceString = source as String
+            Task { @MainActor in perform(sourceString, before) }
+        }
+        return true
+    }
+
+    private func update(_ info: DropInfo) {
+        let next = TileDropIndicator(group: groupID, before: isGroupDrag ? nil : target(info), isGroup: isGroupDrag)
+        if indicator != next { indicator = next }
+    }
+}
+
+/// Clickable row/tile with hover background. Uses a tap gesture instead of `Button`,
+/// because a Button swallows the mouse drag and `.draggable` never starts.
 struct HoverButton<Label: View>: View {
     var action: () -> Void
     var idleBackground: Color = .clear
@@ -295,13 +458,13 @@ struct HoverButton<Label: View>: View {
     @State private var hovering = false
 
     var body: some View {
-        Button(action: action) {
-            label()
-                .contentShape(Rectangle())
-                .background(hovering ? Theme.hover : idleBackground, in: RoundedRectangle(cornerRadius: 3))
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        label()
+            .contentShape(Rectangle())
+            .background(hovering ? Theme.hover : idleBackground, in: RoundedRectangle(cornerRadius: 3))
+            .onHover { hovering = $0 }
+            .onTapGesture(perform: action)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { action() }
     }
 }
 

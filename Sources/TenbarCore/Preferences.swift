@@ -12,6 +12,7 @@ public struct Preferences {
         static let showLabels = "ShowLabels"
         static let startMenuSizes = "StartMenuSizes"
         static let taskbarPinsByDisplay = "TaskbarPinsByDisplay"
+        static let startLayout = "StartLayout"
 
         static func pinnedAppIDs(_ location: PinLocation) -> String {
             switch location {
@@ -59,6 +60,12 @@ public struct Preferences {
     public var showLabels: Bool {
         get { defaults.object(forKey: Key.showLabels) as? Bool ?? true }
         nonmutating set { defaults.set(newValue, forKey: Key.showLabels) }
+    }
+
+    /// Grouped start tiles. nil means never saved (migrate from `pins(.start)`).
+    public var startLayout: StartLayout? {
+        get { defaults.data(forKey: Key.startLayout).flatMap { try? JSONDecoder().decode(StartLayout.self, from: $0) } }
+        nonmutating set { defaults.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: Key.startLayout) }
     }
 
     /// Taskbar pins of one display. nil means the display has no own list yet and uses `pins(.taskbar)`.

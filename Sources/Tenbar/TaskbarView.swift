@@ -140,23 +140,24 @@ struct BarButton<Label: View>: View {
     enum Indicator { case none, running, focused }
 
     var body: some View {
-        Button(action: action) {
-            label()
-                .frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .background(isActive ? Theme.active : (hovering ? Theme.hover : .clear))
-                .overlay(alignment: .bottom) {
-                    switch indicator {
-                    case .none: EmptyView()
-                    case .running: Rectangle().fill(Color.accentColor.opacity(0.8)).frame(width: 18, height: 2)
-                    case .focused: Rectangle().fill(Color.accentColor).frame(height: 2)
-                    }
+        // Tap gesture instead of Button, so `.draggable` on taskbar items can start a drag.
+        label()
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .background(isActive ? Theme.active : (hovering ? Theme.hover : .clear))
+            .overlay(alignment: .bottom) {
+                switch indicator {
+                case .none: EmptyView()
+                case .running: Rectangle().fill(Color.accentColor.opacity(0.8)).frame(width: 18, height: 2)
+                case .focused: Rectangle().fill(Color.accentColor).frame(height: 2)
                 }
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.white)
-        .onHover { hovering = $0 }
-        .help(help)
+            }
+            .foregroundStyle(.white)
+            .onHover { hovering = $0 }
+            .onTapGesture(perform: action)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { action() }
+            .help(help)
     }
 }
 

@@ -305,3 +305,135 @@ import Testing
         #expect(search("zzz").isEmpty)
     }
 }
+
+@Suite struct StartLayoutTests {
+    func layout() -> StartLayout {
+        StartLayout(groups: [
+            StartGroup(id: "work", name: "Arbeit", apps: ["mail", "calendar", "notes"]),
+            StartGroup(id: "fun", name: "Freizeit", apps: ["music", "photos"]),
+        ])
+    }
+
+    func apps(_ layout: StartLayout) -> [[String]] { layout.groups.map(\.apps) }
+
+    @Test func migratesFlatPinsIntoOneGroup() {
+        let migrated = StartLayout(pins: PinList(["a", "b"]), groupID: "g")
+        #expect(migrated.groups == [StartGroup(id: "g", name: "", apps: ["a", "b"])])
+        #expect(StartLayout(pins: PinList()).groups.isEmpty)
+    }
+
+    @Test func initDropsDuplicatesAndEmptyGroups() {
+        let layout = StartLayout(groups: [StartGroup(id: "a", apps: ["x", "y"]), StartGroup(id: "b", apps: ["x"]), StartGroup(id: "c")])
+        #expect(apps(layout) == [["x", "y"]])
+    }
+
+    @Test func pinAppendsToLastGroupOrCreatesOne() {
+        var layout = layout()
+        layout.pin("maps")
+        layout.pin("mail")
+        #expect(apps(layout) == [["mail", "calendar", "notes"], ["music", "photos", "maps"]])
+        var empty = StartLayout()
+        empty.pin("maps", newGroupID: "n")
+        #expect(empty.groups == [StartGroup(id: "n", apps: ["maps"])])
+    }
+
+    @Test func unpinRemovesEmptyGroups() {
+        var layout = layout()
+        layout.unpin("music")
+        layout.unpin("photos")
+        #expect(layout.groups.map(\.id) == ["work"])
+    }
+
+    @Test func movesAppsBetweenGroups() {
+        var layout = layout()
+        layout.move("notes", toGroup: "fun", before: "photos")
+        #expect(apps(layout) == [["mail", "calendar"], ["music", "notes", "photos"]])
+        layout.move("mail", toGroup: "work", before: nil)
+        #expect(apps(layout) == [["calendar", "mail"], ["music", "notes", "photos"]])
+        layout.move("maps", toGroup: "work", before: "calendar")
+        #expect(apps(layout) == [["maps", "calendar", "mail"], ["music", "notes", "photos"]])
+    }
+
+    @Test func movingLastAppOutRemovesGroup() {
+        var layout = StartLayout(groups: [StartGroup(id: "a", apps: ["x"]), StartGroup(id: "b", apps: ["y"])])
+        layout.move("x", toGroup: "b")
+        #expect(layout.groups.map(\.id) == ["b"])
+        layout.moveToNewGroup("y", groupID: "c")
+        #expect(layout.groups == [StartGroup(id: "b", apps: ["x"]), StartGroup(id: "c", apps: ["y"])])
+        var single = StartLayout(groups: [StartGroup(id: "a", apps: ["x"])])
+        single.moveToNewGroup("x", groupID: "z")
+        #expect(single.groups == [StartGroup(id: "z", apps: ["x"])])
+    }
+
+    @Test func newGroupAtEnd() {
+        var layout = layout()
+        layout.moveToNewGroup("calendar", groupID: "new")
+        #expect(layout.groups.map(\.id) == ["work", "fun", "new"])
+        #expect(layout.groupID(of: "calendar") == "new")
+    }
+
+    @Test func renamesAndMovesGroups() {
+        var layout = layout()
+        layout.rename("fun", to: "  Medien ")
+        #expect(layout.groups[1].name == "Medien")
+        layout.moveGroup("fun", before: "work")
+        #expect(layout.groups.map(\.id) == ["fun", "work"])
+        layout.moveGroup("fun", before: nil)
+        #expect(layout.groups.map(\.id) == ["work", "fun"])
+    }
+
+    @Test func removeGroupUnpinsItsApps() {
+        var layout = layout()
+        layout.removeGroup("work")
+        #expect(!layout.contains("mail"))
+        #expect(layout.allApps == ["music", "photos"])
+    }
+
+    @Test func persistsThroughPreferences() throws {
+        let suite = "TenbarTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = Preferences(defaults: defaults)
+        #expect(preferences.startLayout == nil)
+        preferences.startLayout = layout()
+        #expect(preferences.startLayout == layout())
+    }
+}
+
+@Suite struct TileDropTests {
+    // Two rows of 72x72 tiles with 6pt spacing below a 30pt header: a b c / d e
+    let tiles: [(id: String, frame: CGRect)] = [
+        ("a", CGRect(x: 0, y: 30, width: 72, height: 72)),
+        ("b", CGRect(x: 78, y: 30, width: 72, height: 72)),
+        ("c", CGRect(x: 156, y: 30, width: 72, height: 72)),
+        ("d", CGRect(x: 0, y: 108, width: 72, height: 72)),
+        ("e", CGRect(x: 78, y: 108, width: 72, height: 72)),
+    ]
+
+    func target(_ x: CGFloat, _ y: CGFloat) -> String? {
+        TileDrop.target(location: CGPoint(x: x, y: y), tiles: tiles, headerMaxY: 30)
+    }
+
+    @Test func headerGoesToFront() { #expect(target(100, 10) == "a") }
+
+    @Test func leftHalfOfTileInsertsBeforeIt() {
+        #expect(target(80, 50) == "b")
+        #expect(target(10, 120) == "d")
+    }
+
+    @Test func rightHalfInsertsAfter() {
+        #expect(target(140, 50) == "c")
+        #expect(target(220, 50) == "d") // end of first row → before first tile of next row
+        #expect(target(140, 120) == nil) // end of last row → append
+    }
+
+    @Test func freeSpaceRightOfRowAndBelowAll() {
+        #expect(target(300, 120) == nil)
+        #expect(target(10, 300) == nil)
+        #expect(target(10, 105) == "d") // gap between rows
+    }
+
+    @Test func emptyGroupAppends() {
+        #expect(TileDrop.target(location: .zero, tiles: [], headerMaxY: 30) == nil)
+    }
+}

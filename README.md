@@ -15,6 +15,13 @@ Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swi
 - Startmenü und Taskleiste haben wie bei Windows 10 getrennte Pin-Listen. Im Startmenü bietet das Kontextmenü „An Start anheften“ und „An Taskleiste anheften“.
 - Taskleisten-Pins sind pro Bildschirm getrennt (gespeichert pro Display-UUID). Ein Bildschirm ohne eigene Liste zeigt die bisherigen gemeinsamen Pins, bis dort zum ersten Mal etwas angeheftet, gelöst oder verschoben wird. „An Taskleiste anheften“ im Startmenü wirkt auf die Taskleiste des Bildschirms, auf dem das Startmenü geöffnet ist.
 - Startmenü: alphabetische Liste aller Apps, Kacheln der angehefteten Apps und ein Ein/Aus-Menü (Sperren, Energie sparen, Abmelden, Neu starten, Herunterfahren). Die letzten drei fragen vorher nach.
+- Gruppen im Startmenü wie bei Windows 10:
+  - Überschrift anklicken zum Umbenennen, an der Überschrift ziehen zum Verschieben der Gruppe.
+  - Apps auf eine Kachel, eine Überschrift oder freie Fläche einer Gruppe ziehen verschiebt sie in diese Gruppe.
+  - „Hierher ziehen für eine neue Gruppe“ legt eine neue Gruppe an.
+  - Rechtsklick auf die Überschrift → „Gruppe vom Start lösen“.
+  - Leere Gruppen verschwinden automatisch.
+  - Bestehende Start-Pins werden einmalig in eine unbenannte Gruppe übernommen.
 - Suche im Startmenü: Das Suchfeld hat beim Öffnen sofort den Fokus, also einfach lostippen. Treffer am Namensanfang stehen vor Wortanfängen und Treffern mitten im Namen. Groß-/Kleinschreibung und Akzente werden ignoriert. ↑/↓ wählt, Enter startet, Escape leert erst die Suche und schließt dann das Menü.
 - Startmenü-Größe pro Bildschirm: Die Ecke oben rechts ändert Höhe und Gesamtbreite, die Trennlinie zwischen „Alle Apps“ und „Angeheftet“ verteilt die Breite. Gespeichert wird pro Monitor über die Display-UUID; zurücksetzen per Rechtsklick auf Start.
 - Die Fensterliste aktualisiert sich über `AXObserver`- und `NSWorkspace`-Ereignisse statt durch ständige Abfrage. Ein Sicherheitsabgleich läuft alle 5 Sekunden.

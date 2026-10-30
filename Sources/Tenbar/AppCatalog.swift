@@ -21,7 +21,7 @@ final class AppCatalog: ObservableObject {
     /// Template for displays without an own list (the former global taskbar pins).
     @Published private(set) var taskbarPinTemplate: PinList
     @Published private(set) var taskbarPinsByDisplay: [String: PinList] = [:]
-    @Published private(set) var startPins: PinList
+    @Published private(set) var startLayout: StartLayout
     @Published var statusMessage = ""
     @Published var combineMode: CombineMode {
         didSet { preferences.combineMode = combineMode }
@@ -49,7 +49,16 @@ final class AppCatalog: ObservableObject {
     init(preferences: Preferences = Preferences()) {
         self.preferences = preferences
         self.taskbarPinTemplate = preferences.pins(.taskbar) ?? PinList()
-        self.startPins = preferences.pins(.start) ?? PinList()
+        if let layout = preferences.startLayout {
+            self.startLayout = layout
+        } else if let pins = preferences.pins(.start) {
+            // One-time migration from the flat start pin list.
+            let migrated = StartLayout(pins: pins)
+            self.startLayout = migrated
+            preferences.startLayout = migrated
+        } else {
+            self.startLayout = StartLayout()
+        }
         self.combineMode = preferences.combineMode
         self.showLabels = preferences.showLabels
     }
@@ -66,9 +75,10 @@ final class AppCatalog: ObservableObject {
         apps.first { $0.id == id }
     }
 
-    var startPinnedApps: [InstalledApp] {
+    /// Installed apps of a start group (pins of uninstalled apps are hidden).
+    func apps(in group: StartGroup) -> [InstalledApp] {
         let byID = Dictionary(apps.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return startPins.ids.compactMap { byID[$0] }
+        return group.apps.compactMap { byID[$0] }
     }
 
     func rescan() {
@@ -77,9 +87,14 @@ final class AppCatalog: ObservableObject {
         Task {
             let records = await Task.detached(priority: .utility) { AppScanner.scan() }.value
             apps = records.map(InstalledApp.init(record:))
-            for location in PinLocation.allCases where preferences.pins(location) == nil {
-                let defaults = PinList.defaults(available: records.map(\.id), preferred: Self.preferredPins(location))
-                setDefaultPins(defaults, location)
+            if preferences.pins(.taskbar) == nil {
+                let defaults = PinList.defaults(available: records.map(\.id), preferred: Self.preferredPins(.taskbar))
+                taskbarPinTemplate = defaults
+                preferences.setPins(defaults, .taskbar)
+            }
+            if preferences.startLayout == nil {
+                let defaults = PinList.defaults(available: records.map(\.id), preferred: Self.preferredPins(.start))
+                updateStart { $0 = StartLayout(pins: defaults) }
             }
             isScanning = false
         }
@@ -99,7 +114,7 @@ final class AppCatalog: ObservableObject {
 
     func pins(_ target: PinTarget) -> PinList {
         switch target {
-        case .start: startPins
+        case .start: PinList(startLayout.allApps)
         case .taskbar(let display): taskbarPins(display: display)
         }
     }
@@ -109,53 +124,62 @@ final class AppCatalog: ObservableObject {
     }
 
     func togglePin(_ appID: String, _ target: PinTarget) {
-        var updated = pins(target)
-        updated.toggle(appID)
-        setPins(updated, target)
-    }
-
-    private func setPins(_ pins: PinList, _ target: PinTarget) {
         switch target {
         case .start:
-            startPins = pins
-            preferences.setPins(pins, .start)
+            updateStart { $0.contains(appID) ? $0.unpin(appID) : $0.pin(appID) }
         case .taskbar(let display):
-            taskbarPinsByDisplay[display] = pins
-            preferences.setTaskbarPins(pins, forDisplay: display)
+            var updated = taskbarPins(display: display)
+            updated.toggle(appID)
+            setTaskbarPins(updated, display: display)
         }
     }
 
-    /// Initial pins after the first app scan (only for lists that were never set).
-    private func setDefaultPins(_ pins: PinList, _ location: PinLocation) {
-        switch location {
-        case .taskbar: taskbarPinTemplate = pins
-        case .start: startPins = pins
-        }
-        preferences.setPins(pins, location)
+    private func setTaskbarPins(_ pins: PinList, display: String) {
+        taskbarPinsByDisplay[display] = pins
+        preferences.setTaskbarPins(pins, forDisplay: display)
     }
 
     /// Applies a drop on a display's taskbar. `target` nil means "after the last item".
     func dropOnTaskbar(_ source: String, before target: String?, display: String, visibleUnpinned: [String]) {
+        guard !source.hasPrefix(StartLayout.groupPayloadPrefix) else { return }
         switch TaskbarDrop.apply(source: source, target: target, pins: taskbarPins(display: display),
                                  visibleUnpinned: visibleUnpinned, unpinnedOrder: unpinnedOrder) {
         case .none: break
-        case .pins(let pins): setPins(pins, .taskbar(display: display))
+        case .pins(let pins): setTaskbarPins(pins, display: display)
         case .unpinnedOrder(let order): unpinnedOrder = order
         }
     }
 
-    /// Pins `source` to start (if needed) and places it before `target`, or at the end.
-    func dropOnStart(_ source: String, before target: String?) {
-        guard source != target else { return }
-        var pins = startPins
-        if let target, pins.contains(target) {
-            pins.pin(source)
-            pins.move(source, before: target)
+    // MARK: Start groups
+
+    /// Handles a drop in the start tiles. `source` is an app ID or a group payload.
+    /// `group` nil means "below all groups": apps get a new group, groups move to the end.
+    func dropOnStart(_ source: String, group: String?, before target: String? = nil) {
+        uiLog.notice("start drop source=\(source, privacy: .public) group=\(group ?? "nil", privacy: .public) before=\(target ?? "nil", privacy: .public)")
+        if source.hasPrefix(StartLayout.groupPayloadPrefix) {
+            let groupID = String(source.dropFirst(StartLayout.groupPayloadPrefix.count))
+            updateStart { $0.moveGroup(groupID, before: group) }
+        } else if let group {
+            updateStart { $0.move(source, toGroup: group, before: target) }
         } else {
-            pins.unpin(source)
-            pins.pin(source)
+            updateStart { $0.moveToNewGroup(source) }
         }
-        if pins != startPins { setPins(pins, .start) }
+    }
+
+    func renameStartGroup(_ groupID: String, to name: String) {
+        updateStart { $0.rename(groupID, to: name) }
+    }
+
+    func removeStartGroup(_ groupID: String) {
+        updateStart { $0.removeGroup(groupID) }
+    }
+
+    private func updateStart(_ change: (inout StartLayout) -> Void) {
+        var layout = startLayout
+        change(&layout)
+        guard layout != startLayout || preferences.startLayout == nil else { return }
+        startLayout = layout
+        preferences.startLayout = layout
     }
 
     func launch(_ app: InstalledApp) {
