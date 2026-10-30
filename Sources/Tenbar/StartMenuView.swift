@@ -28,7 +28,8 @@ struct StartMenuView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .topTrailing) { cornerHandle }
         .background(Theme.startMenuBackground)
-        .overlay { Rectangle().strokeBorder(Color.white.opacity(0.08), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1) }
         .foregroundStyle(.white.opacity(0.94))
         .environment(\.colorScheme, .dark)
         .transaction { $0.animation = nil }

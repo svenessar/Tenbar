@@ -8,7 +8,7 @@ enum Theme {
     static let barBackground = Color(white: 0.07).opacity(0.88)
     static let hover = Color.white.opacity(0.10)
     static let active = Color.white.opacity(0.18)
-    static let startMenuBackground = Color(red: 0.12, green: 0.13, blue: 0.15)
+    static let startMenuBackground = Color(red: 0.07, green: 0.075, blue: 0.085)
 }
 
 struct TaskbarView: View {
