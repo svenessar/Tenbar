@@ -90,11 +90,14 @@ struct TaskbarView: View {
                 ForEach(CombineMode.allCases) { Text($0.title).tag($0) }
             }
             Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
+            Button("Startmenü-Größe zurücksetzen") {
+                catalog.setStartMenuSize(nil, forDisplay: stableDisplayKey(displayID))
+            }
             Divider()
             Button("Tenbar beenden") { NSApp.terminate(nil) }
         }
         .popover(isPresented: $showStartMenu, arrowEdge: .top) {
-            StartMenuView(isPresented: $showStartMenu)
+            StartMenuView(isPresented: $showStartMenu, displayID: displayID)
                 .environmentObject(catalog)
         }
     }

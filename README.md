@@ -8,11 +8,13 @@ Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swi
 - Gruppierung wie bei Windows 10 (umschaltbar per Rechtsklick auf Start):
   - **Immer gruppieren:** eine Symbol-Schaltfläche pro App, angeheftete Apps und ihre Fenster verschmelzen. Bei mehreren Fenstern zeigt ein Zähler die Anzahl, ein Klick öffnet die Fensterliste.
   - **Nie gruppieren:** eine beschriftete Schaltfläche pro Fenster, an der Position der angehefteten App.
+- Beschriftungen (standardmäßig an, abschaltbar per Rechtsklick auf Start): Laufende Apps zeigen bei einem Fenster dessen Titel, bei mehreren den App-Namen. Angeheftete Apps ohne Fenster bleiben reine Symbole.
 - Klick auf ein einzelnes Fenster holt es nach vorn; ist es bereits aktiv, wird es minimiert.
 - Kontextmenü: App öffnen, an die Taskleiste anheften oder lösen, Fenster bzw. alle Fenster schließen, App beenden.
 - Drag & Drop: Angeheftete Apps lassen sich auf der Taskleiste umsortieren (wird gespeichert), laufende Apps untereinander ebenfalls (nur bis zum Beenden von Tenbar). Eine App aus dem Startmenü auf die Taskleiste ziehen heftet sie an der Ablagestelle an. Start-Kacheln lassen sich ebenso sortieren, und aus der App-Liste gezogene Apps werden an Start angeheftet.
 - Startmenü und Taskleiste haben wie bei Windows 10 getrennte Pin-Listen. Im Startmenü bietet das Kontextmenü „An Start anheften“ und „An Taskleiste anheften“.
 - Startmenü: alphabetische Liste aller Apps, Kacheln der angehefteten Apps und ein Ein/Aus-Menü (Sperren, Energie sparen, Abmelden, Neu starten, Herunterfahren). Die letzten drei fragen vorher nach.
+- Startmenü-Größe pro Bildschirm: Die Ecke oben rechts ändert Höhe und Gesamtbreite, die Trennlinie zwischen „Alle Apps“ und „Angeheftet“ verteilt die Breite. Gespeichert wird pro Monitor über die Display-UUID; zurücksetzen per Rechtsklick auf Start.
 - Die Fensterliste aktualisiert sich über `AXObserver`- und `NSWorkspace`-Ereignisse statt durch ständige Abfrage. Ein Sicherheitsabgleich läuft alle 5 Sekunden.
 - Fenster-IDs bleiben stabil, auch wenn sich ein Titel ändert. Die Reihenfolge bleibt dabei erhalten.
 
@@ -48,5 +50,5 @@ swift test         # Tests
 
 - Option „Gruppieren, wenn die Taskleiste voll ist“
 - Einstellungsfenster (Taskleiste pro Bildschirm, Breiten, Schriftgrößen)
-- „Zuletzt verwendet“ im Startmenü und Größe des Startmenüs einstellbar
+- „Zuletzt verwendet“ im Startmenü
 - Neue Fenster auf dem Bildschirm der geklickten Taskleiste öffnen

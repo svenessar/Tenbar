@@ -215,3 +215,40 @@ import Testing
         #expect(items.map(\.appKey) == ["music", "notes", "photos"])
     }
 }
+
+@Suite struct StartMenuSizeTests {
+    let base = StartMenuSize.standard
+
+    @Test func cornerDragChangesPinnedWidthAndHeight() {
+        let size = base.resized(width: 100, height: 50, maxTotalWidth: 2000, maxHeight: 1000)
+        #expect(size == StartMenuSize(allAppsWidth: 240, pinnedWidth: 360, height: 530))
+    }
+
+    @Test func cornerDragIsClampedToScreen() {
+        let size = base.resized(width: 5000, height: 5000, maxTotalWidth: 1000, maxHeight: 700)
+        #expect(size.totalWidth == 1000)
+        #expect(size.height == 700)
+        let small = base.resized(width: -5000, height: -5000, maxTotalWidth: 1000, maxHeight: 700)
+        #expect(small.pinnedWidth == StartMenuSize.minPinnedWidth)
+        #expect(small.height == StartMenuSize.minHeight)
+    }
+
+    @Test func splitKeepsTotalWidth() {
+        let size = base.splitMoved(by: 60)
+        #expect(size.allAppsWidth == 300)
+        #expect(size.totalWidth == base.totalWidth)
+        #expect(base.splitMoved(by: -500).allAppsWidth == StartMenuSize.allAppsRange.lowerBound)
+        #expect(base.splitMoved(by: 500).pinnedWidth == StartMenuSize.minPinnedWidth)
+    }
+
+    @Test func sizesArePersistedPerDisplay() {
+        let defaults = UserDefaults(suiteName: "tenbar.test.\(UUID().uuidString)")!
+        let prefs = Preferences(defaults: defaults)
+        let big = StartMenuSize(allAppsWidth: 300, pinnedWidth: 600, height: 800)
+        prefs.setStartMenuSize(big, forDisplay: "A")
+        #expect(prefs.startMenuSize(forDisplay: "A") == big)
+        #expect(prefs.startMenuSize(forDisplay: "B") == nil)
+        prefs.setStartMenuSize(nil, forDisplay: "A")
+        #expect(prefs.startMenuSize(forDisplay: "A") == nil)
+    }
+}

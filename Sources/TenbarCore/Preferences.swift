@@ -10,6 +10,7 @@ public struct Preferences {
     private enum Key {
         static let combineMode = "CombineMode"
         static let showLabels = "ShowLabels"
+        static let startMenuSizes = "StartMenuSizes"
 
         static func pinnedAppIDs(_ location: PinLocation) -> String {
             switch location {
@@ -57,5 +58,17 @@ public struct Preferences {
     public var showLabels: Bool {
         get { defaults.object(forKey: Key.showLabels) as? Bool ?? true }
         nonmutating set { defaults.set(newValue, forKey: Key.showLabels) }
+    }
+
+    /// Start menu size per display (keyed by a stable display identifier). nil means default size.
+    public func startMenuSize(forDisplay key: String) -> StartMenuSize? {
+        guard let data = (defaults.dictionary(forKey: Key.startMenuSizes) as? [String: Data])?[key] else { return nil }
+        return try? JSONDecoder().decode(StartMenuSize.self, from: data)
+    }
+
+    public func setStartMenuSize(_ size: StartMenuSize?, forDisplay key: String) {
+        var all = defaults.dictionary(forKey: Key.startMenuSizes) as? [String: Data] ?? [:]
+        all[key] = size.flatMap { try? JSONEncoder().encode($0) }
+        defaults.set(all, forKey: Key.startMenuSizes)
     }
 }

@@ -4,19 +4,92 @@ import TenbarCore
 
 struct StartMenuView: View {
     @Binding var isPresented: Bool
+    let displayID: CGDirectDisplayID
     @EnvironmentObject private var catalog: AppCatalog
     @State private var dropTargetTile: String?
+    @State private var size: StartMenuSize?
+    @State private var dragStart: (mouse: NSPoint, size: StartMenuSize)?
 
     var body: some View {
+        let size = currentSize
         HStack(spacing: 0) {
             rail
-            allApps.frame(width: 240)
-            pinned.frame(width: 260)
+            allApps.frame(width: size.allAppsWidth)
+            pinned.frame(width: size.pinnedWidth)
+                .overlay(alignment: .leading) { splitHandle }
         }
-        .frame(height: 480)
+        .frame(height: size.height)
+        .overlay(alignment: .topTrailing) { cornerHandle }
         .background(Theme.startMenuBackground)
         .foregroundStyle(.white.opacity(0.94))
         .environment(\.colorScheme, .dark)
+        .transaction { $0.animation = nil }
+    }
+
+    // MARK: Size
+
+    private var displayKey: String { stableDisplayKey(displayID) }
+
+    private var screenLimits: (width: Double, height: Double) {
+        guard let screen = NSScreen.with(displayID: displayID) else { return (1600, 1000) }
+        return (screen.frame.width - 16, screen.frame.height - Theme.barHeight - 32)
+    }
+
+    private var currentSize: StartMenuSize {
+        let limits = screenLimits
+        return (size ?? catalog.startMenuSize(forDisplay: displayKey))
+            .clamped(maxTotalWidth: limits.width, maxHeight: limits.height)
+    }
+
+    /// Tracks the drag in screen coordinates, because the popover window itself moves while resizing.
+    private func resizeGesture(_ apply: @escaping (_ start: StartMenuSize, _ dx: Double, _ dy: Double) -> StartMenuSize) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .global)
+            .onChanged { _ in
+                let mouse = NSEvent.mouseLocation
+                if dragStart == nil { dragStart = (mouse, currentSize) }
+                guard let start = dragStart else { return }
+                size = apply(start.size, mouse.x - start.mouse.x, mouse.y - start.mouse.y)
+            }
+            .onEnded { _ in
+                dragStart = nil
+                catalog.setStartMenuSize(currentSize, forDisplay: displayKey)
+            }
+    }
+
+    private static var cornerCursor: NSCursor {
+        if #available(macOS 15.0, *) { return .frameResize(position: .topRight, directions: .all) }
+        return .crosshair
+    }
+
+    private var cornerHandle: some View {
+        Image(systemName: "arrow.up.left.and.arrow.down.right")
+            .font(.system(size: 9, weight: .semibold))
+            .rotationEffect(.degrees(90))
+            .foregroundStyle(.white.opacity(0.45))
+            .frame(width: 22, height: 22)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                if inside { Self.cornerCursor.push() } else { NSCursor.pop() }
+            }
+            .gesture(resizeGesture { start, dx, dy in
+                let limits = screenLimits
+                return start.resized(width: dx, height: dy, maxTotalWidth: limits.width, maxHeight: limits.height)
+            })
+            .help("Ziehen, um Höhe und Breite des Startmenüs zu ändern")
+    }
+
+    private var splitHandle: some View {
+        Rectangle()
+            .fill(Color.white.opacity(dragStart == nil ? 0.06 : 0.25))
+            .frame(width: 1)
+            .frame(width: 8)
+            .contentShape(Rectangle())
+            .offset(x: -4)
+            .onHover { inside in
+                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
+            .gesture(resizeGesture { start, dx, _ in start.splitMoved(by: dx) })
+            .help("Ziehen, um die Breite von „Alle Apps“ und „Angeheftet“ zu verteilen")
     }
 
     private var rail: some View {
