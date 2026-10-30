@@ -87,7 +87,7 @@ struct TaskbarView: View {
         BarButton(isActive: startMenu.openDisplayID == displayID, help: "Start") {
             startMenu.toggle(on: displayID)
         } label: {
-            Image(systemName: "square.grid.2x2.fill").font(.system(size: 17)).frame(width: 46)
+            Image(systemName: "apple.logo").font(.system(size: 18)).offset(y: -1).frame(width: 46)
         }
         .contextMenu { settingsMenu }
     }
