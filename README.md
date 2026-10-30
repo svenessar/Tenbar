@@ -5,7 +5,7 @@ Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swi
 ## Stand (Kern)
 
 - Eine Taskleiste pro Bildschirm. Jedes Fenster erscheint auf dem Bildschirm, auf dem es überwiegend liegt.
-- Gruppierung wie bei Windows 10 (umschaltbar per Rechtsklick auf Start):
+- Gruppierung wie bei Windows 10 (umschaltbar per Rechtsklick auf Start oder eine leere Stelle der Taskleiste):
   - **Immer gruppieren:** eine Symbol-Schaltfläche pro App, angeheftete Apps und ihre Fenster verschmelzen. Bei mehreren Fenstern zeigt ein Zähler die Anzahl, ein Klick öffnet die Fensterliste.
   - **Nie gruppieren:** eine beschriftete Schaltfläche pro Fenster, an der Position der angehefteten App.
 - Beschriftungen (standardmäßig an, abschaltbar per Rechtsklick auf Start): Laufende Apps zeigen bei einem Fenster dessen Titel, bei mehreren den App-Namen. Angeheftete Apps ohne Fenster bleiben reine Symbole.

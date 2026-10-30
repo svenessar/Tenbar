@@ -81,28 +81,36 @@ struct StartMenuView: View {
     }
 
     private var rail: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             Spacer()
-            Image(systemName: "person.crop.circle").font(.system(size: 16)).frame(width: 40, height: 36)
-                .help(NSFullUserName())
-            Menu {
-                ForEach(PowerAction.allCases) { action in
-                    Button { run(action) } label: { Label(action.title, systemImage: action.symbol) }
-                }
-                Divider()
-                Button("Tenbar beenden") { NSApp.terminate(nil) }
-            } label: {
-                Image(systemName: "power").font(.system(size: 16))
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .frame(width: 40, height: 36)
-            .help("Ein/Aus")
+            railButton("person.crop.circle", help: NSFullUserName()) {}
+            railButton("power", help: "Ein/Aus") { showPowerMenu() }
         }
-        .padding(.vertical, 8)
-        .frame(width: 48)
+        .padding(.vertical, 6)
+        .frame(width: StartMenuSize.railWidth)
         .frame(maxHeight: .infinity)
         .background(Color.black.opacity(0.18))
+    }
+
+    private func railButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
+        HoverButton(action: action) {
+            Image(systemName: symbol).font(.system(size: 16))
+                .frame(width: StartMenuSize.railWidth, height: 40)
+        }
+        .help(help)
+    }
+
+    /// AppKit menu at the mouse position: SwiftUI's Menu adds its own insets and misaligns the icon.
+    private func showPowerMenu() {
+        let powerMenu = NSMenu()
+        for action in PowerAction.allCases {
+            let item = ClosureMenuItem(title: action.title) { run(action) }
+            item.image = NSImage(systemSymbolName: action.symbol, accessibilityDescription: nil)
+            powerMenu.addItem(item)
+        }
+        powerMenu.addItem(.separator())
+        powerMenu.addItem(ClosureMenuItem(title: "Tenbar beenden") { NSApp.terminate(nil) })
+        powerMenu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
     private var allApps: some View {
@@ -227,4 +235,18 @@ struct HoverButton<Label: View>: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
     }
+}
+
+final class ClosureMenuItem: NSMenuItem {
+    private let handler: () -> Void
+
+    init(title: String, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(fire), keyEquivalent: "")
+        target = self
+    }
+
+    required init(coder: NSCoder) { fatalError("not used") }
+
+    @objc private func fire() { handler() }
 }

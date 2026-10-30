@@ -18,6 +18,7 @@ struct TaskbarView: View {
     @EnvironmentObject private var catalog: AppCatalog
     @EnvironmentObject private var startMenu: StartMenuController
     @State private var dropAtEnd = false
+    @State private var scrollWidth: CGFloat = 0
 
     private var displayKey: String { stableDisplayKey(displayID) }
 
@@ -39,7 +40,12 @@ struct TaskbarView: View {
                 .overlay(alignment: .trailing) {
                     if dropAtEnd { DropMarker().offset(x: 2) }
                 }
+                // Fill the visible width so a right-click on empty space hits the bar's settings menu.
+                .frame(minWidth: scrollWidth, maxHeight: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .contextMenu { settingsMenu }
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { scrollWidth = $0 }
             .dropDestination(for: String.self) { keys, _ in
                 guard let source = keys.first else { return false }
                 catalog.dropOnTaskbar(source, before: nil, display: displayKey, visibleUnpinned: visibleUnpinned)
@@ -49,6 +55,8 @@ struct TaskbarView: View {
         }
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .contextMenu { settingsMenu }
         .background(.ultraThinMaterial)
         .background(Theme.barBackground)
         .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.12)).frame(height: 0.5) }
@@ -83,17 +91,21 @@ struct TaskbarView: View {
         } label: {
             Image(systemName: "square.grid.2x2.fill").font(.system(size: 17)).frame(width: 46)
         }
-        .contextMenu {
-            Picker("Taskleisten-Schaltflächen", selection: $catalog.combineMode) {
-                ForEach(CombineMode.allCases) { Text($0.title).tag($0) }
-            }
-            Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
-            Button("Startmenü-Größe zurücksetzen") {
-                startMenu.resetSize(forDisplay: displayID)
-            }
-            Divider()
-            Button("Tenbar beenden") { NSApp.terminate(nil) }
+        .contextMenu { settingsMenu }
+    }
+
+    /// Taskbar settings, opened by right-clicking the start button or empty taskbar space.
+    @ViewBuilder
+    private var settingsMenu: some View {
+        Picker("Taskleisten-Schaltflächen", selection: $catalog.combineMode) {
+            ForEach(CombineMode.allCases) { Text($0.title).tag($0) }
         }
+        Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
+        Button("Startmenü-Größe zurücksetzen") {
+            startMenu.resetSize(forDisplay: displayID)
+        }
+        Divider()
+        Button("Tenbar beenden") { NSApp.terminate(nil) }
     }
 
     private var permissionButton: some View {
