@@ -2,6 +2,8 @@
 
 Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swift Package.
 
+![Tenbar in Aktion](docs/demo.gif)
+
 ## Stand (Kern)
 
 - Eine Taskleiste pro Bildschirm. Jedes Fenster erscheint auf dem Bildschirm, auf dem es überwiegend liegt.
