@@ -77,6 +77,14 @@ final class AppCatalog: ObservableObject {
         preferences.setStartMenuSize(size, forDisplay: key)
     }
 
+    func startShowsAllApps(forDisplay key: String) -> Bool {
+        preferences.startShowsAllApps(forDisplay: key)
+    }
+
+    func setStartShowsAllApps(_ shows: Bool, forDisplay key: String) {
+        preferences.setStartShowsAllApps(shows, forDisplay: key)
+    }
+
     func app(id: String) -> InstalledApp? {
         apps.first { $0.id == id }
     }

@@ -303,6 +303,28 @@ import Testing
         prefs.setStartMenuSize(nil, forDisplay: "A")
         #expect(prefs.startMenuSize(forDisplay: "A") == nil)
     }
+
+    @Test func hidingAllAppsDropsItsWidth() {
+        #expect(base.width(showsAllApps: false) == StartMenuSize.railWidth + base.pinnedWidth)
+        #expect(base.totalWidth == StartMenuSize.railWidth + base.allAppsWidth + base.pinnedWidth)
+        let wide = StartMenuSize(allAppsWidth: 240, pinnedWidth: 2000, height: 480)
+        #expect(wide.clamped(maxTotalWidth: 1000, maxHeight: 1000, showsAllApps: false).pinnedWidth == 1000 - StartMenuSize.railWidth)
+    }
+
+    @Test func allAppsVisibilityIsPersistedPerDisplay() {
+        let defaults = UserDefaults(suiteName: "TenbarTests-\(UUID())")!
+        let prefs = Preferences(defaults: defaults)
+        #expect(prefs.startShowsAllApps(forDisplay: "A"))
+        prefs.setStartShowsAllApps(false, forDisplay: "A")
+        #expect(!prefs.startShowsAllApps(forDisplay: "A"))
+        #expect(prefs.startShowsAllApps(forDisplay: "B"))
+        prefs.setStartShowsAllApps(true, forDisplay: "A")
+        #expect(prefs.startShowsAllApps(forDisplay: "A"))
+    }
+
+    @Test func onlySessionEndingActionsSkipReopen() {
+        #expect(PowerAction.allCases.filter(\.endsSession) == [.logOut, .restart, .shutDown])
+    }
 }
 
 @Suite struct AppSearchTests {

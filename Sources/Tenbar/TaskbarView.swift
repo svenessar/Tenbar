@@ -111,6 +111,10 @@ struct TaskbarView: View {
             Text("Pro Bildschirm eigene").tag(true)
             Text("Auf allen Bildschirmen gleich").tag(false)
         }
+        Toggle("„Alle Apps“ im Startmenü anzeigen", isOn: Binding(
+            get: { catalog.startShowsAllApps(forDisplay: displayKey) },
+            set: { startMenu.setShowsAllApps($0, forDisplay: displayID) }
+        ))
         Button("Startmenü-Größe zurücksetzen") {
             startMenu.resetSize(forDisplay: displayID)
         }

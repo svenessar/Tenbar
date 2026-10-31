@@ -26,6 +26,8 @@ final class StartMenuPanel: NSPanel {
 final class StartMenuController: ObservableObject {
     @Published private(set) var openDisplayID: CGDirectDisplayID?
     @Published private(set) var size = StartMenuSize.standard
+    /// "All apps" column visible on the open display (stored per display).
+    @Published private(set) var showsAllApps = true
     @Published var searchText = ""
     /// Incremented on every open, so the view can focus the search field.
     @Published private(set) var openCount = 0
@@ -61,6 +63,7 @@ final class StartMenuController: ObservableObject {
         guard let screen = NSScreen.with(displayID: displayID) else { return }
         close()
         openDisplayID = displayID
+        showsAllApps = catalog.startShowsAllApps(forDisplay: stableDisplayKey(displayID))
         size = clamp(catalog.startMenuSize(forDisplay: stableDisplayKey(displayID)), on: screen)
         catalog.rescan()
 
@@ -102,6 +105,20 @@ final class StartMenuController: ObservableObject {
         if openDisplayID == displayID { resize(to: .standard) }
     }
 
+    func setShowsAllApps(_ shows: Bool, forDisplay displayID: CGDirectDisplayID) {
+        catalog.setStartShowsAllApps(shows, forDisplay: stableDisplayKey(displayID))
+        guard openDisplayID == displayID, let screen = openScreen else { return }
+        showsAllApps = shows
+        if !shows { searchText = "" }
+        size = clamp(size, on: screen)
+        applyFrame()
+    }
+
+    func toggleAllApps() {
+        guard let displayID = openDisplayID else { return }
+        setShowsAllApps(!showsAllApps, forDisplay: displayID)
+    }
+
     func saveSize() {
         guard let key = displayKey else { return }
         catalog.setStartMenuSize(size, forDisplay: key)
@@ -116,13 +133,13 @@ final class StartMenuController: ObservableObject {
 
     private func clamp(_ size: StartMenuSize, on screen: NSScreen) -> StartMenuSize {
         let limits = limits(on: screen)
-        return size.clamped(maxTotalWidth: limits.width, maxHeight: limits.height)
+        return size.clamped(maxTotalWidth: limits.width, maxHeight: limits.height, showsAllApps: showsAllApps)
     }
 
     private func applyFrame() {
         guard let screen = openScreen else { return }
         let frame = NSRect(x: screen.frame.minX, y: screen.frame.minY + Theme.barHeight,
-                           width: size.totalWidth, height: size.height)
+                           width: size.width(showsAllApps: showsAllApps), height: size.height)
         panel.setFrame(frame, display: true, animate: false)
     }
 

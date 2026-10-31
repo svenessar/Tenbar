@@ -11,6 +11,7 @@ public struct Preferences {
         static let combineMode = "CombineMode"
         static let showLabels = "ShowLabels"
         static let startMenuSizes = "StartMenuSizes"
+        static let startAllAppsHiddenDisplays = "StartAllAppsHiddenDisplays"
         static let taskbarPinsByDisplay = "TaskbarPinsByDisplay"
         static let startLayout = "StartLayout"
         static let startLayoutsByDisplay = "StartLayoutsByDisplay"
@@ -109,5 +110,16 @@ public struct Preferences {
         var all = defaults.dictionary(forKey: Key.startMenuSizes) as? [String: Data] ?? [:]
         all[key] = size.flatMap { try? JSONEncoder().encode($0) }
         defaults.set(all, forKey: Key.startMenuSizes)
+    }
+
+    /// Whether the start menu on one display shows the "All apps" column. Defaults to true.
+    public func startShowsAllApps(forDisplay key: String) -> Bool {
+        !(defaults.stringArray(forKey: Key.startAllAppsHiddenDisplays) ?? []).contains(key)
+    }
+
+    public func setStartShowsAllApps(_ shows: Bool, forDisplay key: String) {
+        var hidden = Set(defaults.stringArray(forKey: Key.startAllAppsHiddenDisplays) ?? [])
+        if shows { hidden.remove(key) } else { hidden.insert(key) }
+        defaults.set(hidden.sorted(), forKey: Key.startAllAppsHiddenDisplays)
     }
 }

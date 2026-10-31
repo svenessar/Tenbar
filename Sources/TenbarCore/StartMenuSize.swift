@@ -18,7 +18,12 @@ public struct StartMenuSize: Codable, Equatable, Sendable {
         self.height = height
     }
 
-    public var totalWidth: Double { Self.railWidth + allAppsWidth + pinnedWidth }
+    public var totalWidth: Double { width(showsAllApps: true) }
+
+    /// The "All apps" column can be hidden per display, then only rail and pinned tiles are shown.
+    public func width(showsAllApps: Bool) -> Double {
+        Self.railWidth + (showsAllApps ? allAppsWidth : 0) + pinnedWidth
+    }
 
     /// Dragging the top-right corner: width changes go to the pinned column (like Windows 10), height is shared.
     public func resized(width dx: Double, height dy: Double, maxTotalWidth: Double, maxHeight: Double) -> StartMenuSize {
@@ -39,10 +44,10 @@ public struct StartMenuSize: Codable, Equatable, Sendable {
     }
 
     /// Keeps the menu usable and on screen (e.g. after moving a setting to a smaller display).
-    public func clamped(maxTotalWidth: Double, maxHeight: Double) -> StartMenuSize {
+    public func clamped(maxTotalWidth: Double, maxHeight: Double, showsAllApps: Bool = true) -> StartMenuSize {
         var size = self
         size.allAppsWidth = min(max(size.allAppsWidth, Self.allAppsRange.lowerBound), Self.allAppsRange.upperBound)
-        let maxPinned = max(Self.minPinnedWidth, maxTotalWidth - Self.railWidth - size.allAppsWidth)
+        let maxPinned = max(Self.minPinnedWidth, maxTotalWidth - Self.railWidth - (showsAllApps ? size.allAppsWidth : 0))
         size.pinnedWidth = min(max(size.pinnedWidth, Self.minPinnedWidth), maxPinned)
         size.height = min(max(size.height, Self.minHeight), max(Self.minHeight, maxHeight))
         return size

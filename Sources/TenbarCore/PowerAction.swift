@@ -30,6 +30,14 @@ public enum PowerAction: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Session-ending actions: macOS must not reopen the apps afterwards.
+    public var endsSession: Bool {
+        switch self {
+        case .logOut, .restart, .shutDown: true
+        case .lock, .sleep: false
+        }
+    }
+
     public var appleScript: String {
         switch self {
         case .lock: #"tell application "System Events" to keystroke "q" using {control down, command down}"#

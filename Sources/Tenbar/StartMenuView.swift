@@ -21,9 +21,13 @@ struct StartMenuView: View {
         let size = menu.size
         HStack(spacing: 0) {
             rail
-            allApps.frame(width: size.allAppsWidth)
-            pinned.frame(width: size.pinnedWidth)
-                .overlay(alignment: .leading) { splitHandle }
+            if menu.showsAllApps {
+                allApps.frame(width: size.allAppsWidth)
+                pinned.frame(width: size.pinnedWidth)
+                    .overlay(alignment: .leading) { splitHandle }
+            } else {
+                pinned.frame(width: size.pinnedWidth)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .topTrailing) { cornerHandle }
@@ -92,6 +96,10 @@ struct StartMenuView: View {
 
     private var rail: some View {
         VStack(spacing: 2) {
+            railButton(menu.showsAllApps ? "sidebar.left" : "list.bullet",
+                       help: menu.showsAllApps ? "„Alle Apps“ auf diesem Bildschirm ausblenden" : "„Alle Apps“ auf diesem Bildschirm einblenden") {
+                menu.toggleAllApps()
+            }
             Spacer()
             railButton("person.crop.circle", help: NSFullUserName()) {}
             railButton("power", help: "Ein/Aus") { showPowerMenu() }
