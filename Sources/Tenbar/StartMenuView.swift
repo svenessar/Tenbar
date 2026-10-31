@@ -32,6 +32,7 @@ struct StartMenuView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .topTrailing) {
             HStack(spacing: 2) {
+                editButton
                 scaleSlider
                 cornerHandle
             }
@@ -48,6 +49,19 @@ struct StartMenuView: View {
 
     /// Scales a text or icon size by the zoom of the open display.
     private func s(_ value: CGFloat) -> CGFloat { (value * menu.scale).rounded() }
+
+    /// Edit mode shows group names to rename and the drop zone for new groups; otherwise only the tiles.
+    private var editButton: some View {
+        Button { menu.isEditing.toggle() } label: {
+            Image(systemName: menu.isEditing ? "pencil.circle.fill" : "pencil")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(menu.isEditing ? Color.accentColor : .white.opacity(0.45))
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(menu.isEditing ? "Bearbeiten beenden" : "Gruppen bearbeiten (benennen, neue Gruppe anlegen)")
+    }
 
     private var scaleSlider: some View {
         HStack(spacing: 4) {
@@ -103,8 +117,11 @@ struct StartMenuView: View {
                 if inside { Self.cornerCursor.push() } else { NSCursor.pop() }
             }
             .gesture(resizeGesture { start, dx, dy in
-                // The controller clamps to the screen.
-                start.resized(width: dx, height: dy, maxTotalWidth: .infinity, maxHeight: .infinity)
+                // The controller clamps to the screen and the minimum height.
+                var size = start
+                size.pinnedWidth += dx
+                size.height += dy
+                return size
             })
             .help("Ziehen, um Höhe und Breite des Startmenüs zu ändern")
     }
@@ -243,11 +260,12 @@ struct StartMenuView: View {
 
     private var pinned: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTitle("Angeheftet")
+            // Room for the edit button, zoom slider and resize corner.
+            Color.clear.frame(height: StartMenuSize.toolbarHeight)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(catalog.startLayout(display: displayKey).groups) { group in groupView(group) }
-                    newGroupZone
+                    if menu.isEditing { newGroupZone }
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
@@ -264,13 +282,17 @@ struct StartMenuView: View {
             }
         }
         .background(Color.white.opacity(0.03))
+        .onChange(of: menu.isEditing) { _, editing in if !editing { finishRename() } }
     }
 
     private func groupView(_ group: StartGroup) -> some View {
         let apps = catalog.apps(in: group)
         let space = "group-\(group.id)"
-        return VStack(alignment: .leading, spacing: 6) {
+        let hidesHeader = !menu.isEditing && group.name.isEmpty
+        return VStack(alignment: .leading, spacing: hidesHeader ? 0 : 6) {
             groupHeader(group)
+                .frame(height: hidesHeader ? 0 : nil)
+                .opacity(hidesHeader ? 0 : 1)
                 .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(space)).maxY } action: { headerMaxY[group.id] = $0 }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: s(72)), spacing: 6)], spacing: 6) {
                 ForEach(apps) { app in
@@ -308,7 +330,10 @@ struct StartMenuView: View {
 
     @ViewBuilder
     private func groupHeader(_ group: StartGroup) -> some View {
-        if editingGroup == group.id {
+        if !menu.isEditing {
+            Text(group.name).font(.system(size: s(12), weight: .semibold)).lineLimit(1)
+                .padding(.horizontal, 4).frame(height: s(24))
+        } else if editingGroup == group.id {
             TextField("Gruppe benennen", text: $draftName)
                 .textFieldStyle(.plain)
                 .font(.system(size: s(12), weight: .semibold))

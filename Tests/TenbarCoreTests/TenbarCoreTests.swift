@@ -280,7 +280,17 @@ import Testing
         #expect(size.height == 700)
         let small = base.resized(width: -5000, height: -5000, maxTotalWidth: 1000, maxHeight: 700)
         #expect(small.pinnedWidth == StartMenuSize.minPinnedWidth)
-        #expect(small.height == StartMenuSize.minHeight)
+        #expect(small.height == StartMenuSize.minHeight(scale: StartMenuScale.standard))
+    }
+
+    @Test func minHeightGrowsWithScale() {
+        let small = StartMenuSize.minHeight(scale: StartMenuScale.range.lowerBound)
+        let large = StartMenuSize.minHeight(scale: StartMenuScale.range.upperBound)
+        #expect(small >= StartMenuSize.minHeight)
+        #expect(large > small)
+        let low = StartMenuSize(allAppsWidth: 240, pinnedWidth: 260, height: 100)
+        #expect(low.clamped(maxTotalWidth: 2000, maxHeight: 1000, scale: 1.8).height == large)
+        #expect(StartMenuSize.minHeight(scale: 1, showsGroupHeader: false) < StartMenuSize.minHeight(scale: 1))
     }
 
     @Test func splitKeepsTotalWidth() {

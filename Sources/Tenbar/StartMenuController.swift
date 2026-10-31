@@ -29,7 +29,14 @@ final class StartMenuController: ObservableObject {
     /// "All apps" column visible on the open display (stored per display).
     @Published private(set) var showsAllApps = true
     /// Text and icon zoom on the open display (stored per display).
-    @Published var scale = StartMenuScale.standard
+    /// Edit mode for start groups; kept while Tenbar runs.
+    @Published var isEditing = false {
+        didSet { reclamp() }
+    }
+    /// Changing it re-clamps the height, so one row of tiles always fits.
+    @Published var scale = StartMenuScale.standard {
+        didSet { if scale != oldValue { reclamp() } }
+    }
     @Published var searchText = ""
     /// Incremented on every open, so the view can focus the search field.
     @Published private(set) var openCount = 0
@@ -146,7 +153,20 @@ final class StartMenuController: ObservableObject {
 
     private func clamp(_ size: StartMenuSize, on screen: NSScreen) -> StartMenuSize {
         let limits = limits(on: screen)
-        return size.clamped(maxTotalWidth: limits.width, maxHeight: limits.height, showsAllApps: showsAllApps)
+        return size.clamped(maxTotalWidth: limits.width, maxHeight: limits.height, showsAllApps: showsAllApps, scale: scale,
+                            showsGroupHeader: showsGroupHeader)
+    }
+
+    /// The first group's header only takes room while editing or when the group has a name.
+    private var showsGroupHeader: Bool {
+        guard let key = displayKey else { return true }
+        return isEditing || !(catalog.startLayout(display: key).groups.first?.name.isEmpty ?? true)
+    }
+
+    private func reclamp() {
+        guard let screen = openScreen else { return }
+        size = clamp(size, on: screen)
+        applyFrame()
     }
 
     private func applyFrame() {
