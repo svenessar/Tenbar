@@ -30,7 +30,12 @@ struct StartMenuView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .overlay(alignment: .topTrailing) { cornerHandle }
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 2) {
+                scaleSlider
+                cornerHandle
+            }
+        }
         .background(Theme.startMenuBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.08), lineWidth: 1) }
@@ -40,6 +45,30 @@ struct StartMenuView: View {
     }
 
     // MARK: Size
+
+    /// Scales a text or icon size by the zoom of the open display.
+    private func s(_ value: CGFloat) -> CGFloat { (value * menu.scale).rounded() }
+
+    private var scaleSlider: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "textformat.size.smaller").font(.system(size: 9))
+            Slider(value: $menu.scale, in: StartMenuScale.range, step: StartMenuScale.step) { editing in
+                if !editing { menu.saveScale() }
+            }
+            .controlSize(.mini)
+            .frame(width: 80)
+            Image(systemName: "textformat.size.larger").font(.system(size: 11))
+        }
+        .foregroundStyle(.white.opacity(0.45))
+        .padding(.top, 1)
+        .help("Schrift- und Symbolgröße auf diesem Bildschirm: \(Int((menu.scale * 100).rounded())) %")
+        .contextMenu {
+            Button("Auf 100 % zurücksetzen") {
+                menu.scale = StartMenuScale.standard
+                menu.saveScale()
+            }
+        }
+    }
 
     private var displayKey: String { menu.displayKey ?? "" }
 
@@ -111,7 +140,7 @@ struct StartMenuView: View {
 
     private func railButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
         HoverButton(action: action) {
-            Image(systemName: symbol).font(.system(size: 16))
+            Image(systemName: symbol).font(.system(size: s(16)))
                 .frame(width: StartMenuSize.railWidth, height: 40)
         }
         .help(help)
@@ -145,7 +174,7 @@ struct StartMenuView: View {
                 ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if results.isEmpty {
                 Text("Keine App für „\(menu.searchText)“ gefunden")
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .font(.system(size: s(12))).foregroundStyle(.secondary)
                     .padding(.horizontal, 14)
                 Spacer()
             } else {
@@ -174,10 +203,10 @@ struct StartMenuView: View {
 
     private func searchField(_ results: [InstalledApp]) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(.secondary)
+            Image(systemName: "magnifyingglass").font(.system(size: s(12))).foregroundStyle(.secondary)
             TextField("Apps durchsuchen", text: $menu.searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.system(size: s(13)))
                 .focused($searchFocused)
                 .onSubmit {
                     if results.indices.contains(selection) { launch(results[selection]) }
@@ -198,7 +227,7 @@ struct StartMenuView: View {
                 .help("Suche leeren")
             }
         }
-        .padding(.horizontal, 10).frame(height: 30)
+        .padding(.horizontal, 10).frame(height: s(30))
         .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
         .overlay {
             RoundedRectangle(cornerRadius: 4)
@@ -230,7 +259,7 @@ struct StartMenuView: View {
                 return true
             }
             if !catalog.statusMessage.isEmpty {
-                Text(catalog.statusMessage).font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(catalog.statusMessage).font(.system(size: s(10))).foregroundStyle(.secondary)
                     .lineLimit(4).padding(12)
             }
         }
@@ -243,7 +272,7 @@ struct StartMenuView: View {
         return VStack(alignment: .leading, spacing: 6) {
             groupHeader(group)
                 .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(space)).maxY } action: { headerMaxY[group.id] = $0 }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 6)], spacing: 6) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: s(72)), spacing: 6)], spacing: 6) {
                 ForEach(apps) { app in
                     tile(app, group: group)
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { tileFrames[app.id] = $0 }
@@ -282,30 +311,30 @@ struct StartMenuView: View {
         if editingGroup == group.id {
             TextField("Gruppe benennen", text: $draftName)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: s(12), weight: .semibold))
                 .focused($renameFocused)
                 .onSubmit { finishRename() }
                 .onChange(of: renameFocused) { _, focused in if !focused { finishRename() } }
-                .padding(.horizontal, 4).frame(height: 24)
+                .padding(.horizontal, 4).frame(height: s(24))
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 3))
         } else {
             HoverButton(action: { startRename(group) }) {
                 HStack(spacing: 6) {
                     Text(group.name.isEmpty ? "Gruppe benennen" : group.name)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: s(12), weight: .semibold))
                         .foregroundStyle(group.name.isEmpty ? .white.opacity(0.4) : .white.opacity(0.94))
                         .lineLimit(1)
                     Spacer(minLength: 0)
-                    Image(systemName: "line.3.horizontal").font(.system(size: 10)).foregroundStyle(.white.opacity(0.35))
+                    Image(systemName: "line.3.horizontal").font(.system(size: s(10))).foregroundStyle(.white.opacity(0.35))
                 }
-                .padding(.horizontal, 4).frame(height: 24)
+                .padding(.horizontal, 4).frame(height: s(24))
             }
             .help("Klicken zum Umbenennen, ziehen zum Verschieben der Gruppe")
             .onDrag {
                 draggedGroup = group.id
                 return NSItemProvider(object: (StartLayout.groupPayloadPrefix + group.id) as NSString)
             } preview: {
-                Text(group.name.isEmpty ? "Gruppe" : group.name).font(.system(size: 12, weight: .semibold))
+                Text(group.name.isEmpty ? "Gruppe" : group.name).font(.system(size: s(12), weight: .semibold))
                     .padding(6).background(Theme.startMenuBackground)
             }
             .contextMenu {
@@ -320,10 +349,10 @@ struct StartMenuView: View {
             .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
             .foregroundStyle(.white.opacity(dropOnNewGroup ? 0.6 : 0.15))
             .background(dropOnNewGroup ? Theme.hover : .clear, in: RoundedRectangle(cornerRadius: 4))
-            .frame(height: 44)
+            .frame(height: s(44))
             .overlay {
                 Text("Hierher ziehen für eine neue Gruppe")
-                    .font(.system(size: 10)).foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: s(10))).foregroundStyle(.white.opacity(0.4))
             }
             .dropDestination(for: String.self) { keys, _ in
                 guard let source = keys.first else { return false }
@@ -346,21 +375,21 @@ struct StartMenuView: View {
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title).font(.system(size: 12, weight: .semibold))
+        Text(title).font(.system(size: s(12), weight: .semibold))
             .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 8)
     }
 
     private func appRow(_ app: InstalledApp, highlighted: Bool = false) -> some View {
         HoverButton(action: { launch(app) }, idleBackground: highlighted ? Theme.active : .clear) {
             HStack(spacing: 10) {
-                Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 24, height: 24)
-                Text(app.name).font(.system(size: 12)).lineLimit(1)
+                Image(nsImage: catalog.icon(for: app)).resizable().frame(width: s(24), height: s(24))
+                Text(app.name).font(.system(size: s(12))).lineLimit(1)
                 Spacer(minLength: 0)
                 if catalog.isPinned(app.id, to: .start(display: displayKey)) {
-                    Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.white.opacity(0.5))
+                    Image(systemName: "pin.fill").font(.system(size: s(9))).foregroundStyle(.white.opacity(0.5))
                 }
             }
-            .padding(.horizontal, 12).frame(height: 34)
+            .padding(.horizontal, 12).frame(height: s(34))
         }
         .draggable(app.id) { dragPreview(app) }
         .contextMenu { pinMenu(app) }
@@ -369,10 +398,10 @@ struct StartMenuView: View {
     private func tile(_ app: InstalledApp, group: StartGroup) -> some View {
         HoverButton(action: { launch(app) }, idleBackground: Color.white.opacity(0.07)) {
             VStack(spacing: 6) {
-                Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 32, height: 32)
-                Text(app.name).font(.system(size: 10)).lineLimit(1).padding(.horizontal, 4)
+                Image(nsImage: catalog.icon(for: app)).resizable().frame(width: s(32), height: s(32))
+                Text(app.name).font(.system(size: s(10))).lineLimit(1).padding(.horizontal, 4)
             }
-            .frame(maxWidth: .infinity, minHeight: 72)
+            .frame(maxWidth: .infinity, minHeight: s(72))
         }
         .hoverTooltip(app.name)
         .overlay(alignment: .leading) {
@@ -383,7 +412,7 @@ struct StartMenuView: View {
     }
 
     private func dragPreview(_ app: InstalledApp) -> some View {
-        Image(nsImage: catalog.icon(for: app)).resizable().frame(width: 32, height: 32)
+        Image(nsImage: catalog.icon(for: app)).resizable().frame(width: s(32), height: s(32))
     }
 
     @ViewBuilder

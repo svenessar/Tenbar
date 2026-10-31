@@ -12,6 +12,7 @@ public struct Preferences {
         static let showLabels = "ShowLabels"
         static let startMenuSizes = "StartMenuSizes"
         static let startAllAppsHiddenDisplays = "StartAllAppsHiddenDisplays"
+        static let startMenuScales = "StartMenuScales"
         static let taskbarPinsByDisplay = "TaskbarPinsByDisplay"
         static let startLayout = "StartLayout"
         static let startLayoutsByDisplay = "StartLayoutsByDisplay"
@@ -110,6 +111,17 @@ public struct Preferences {
         var all = defaults.dictionary(forKey: Key.startMenuSizes) as? [String: Data] ?? [:]
         all[key] = size.flatMap { try? JSONEncoder().encode($0) }
         defaults.set(all, forKey: Key.startMenuSizes)
+    }
+
+    /// Text and icon zoom of the start menu on one display. Defaults to `StartMenuScale.standard`.
+    public func startMenuScale(forDisplay key: String) -> Double {
+        (defaults.dictionary(forKey: Key.startMenuScales) as? [String: Double])?[key].map(StartMenuScale.clamped) ?? StartMenuScale.standard
+    }
+
+    public func setStartMenuScale(_ scale: Double?, forDisplay key: String) {
+        var all = defaults.dictionary(forKey: Key.startMenuScales) as? [String: Double] ?? [:]
+        all[key] = scale.map(StartMenuScale.clamped)
+        defaults.set(all, forKey: Key.startMenuScales)
     }
 
     /// Whether the start menu on one display shows the "All apps" column. Defaults to true.

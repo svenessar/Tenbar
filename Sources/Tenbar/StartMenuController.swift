@@ -28,6 +28,8 @@ final class StartMenuController: ObservableObject {
     @Published private(set) var size = StartMenuSize.standard
     /// "All apps" column visible on the open display (stored per display).
     @Published private(set) var showsAllApps = true
+    /// Text and icon zoom on the open display (stored per display).
+    @Published var scale = StartMenuScale.standard
     @Published var searchText = ""
     /// Incremented on every open, so the view can focus the search field.
     @Published private(set) var openCount = 0
@@ -64,6 +66,7 @@ final class StartMenuController: ObservableObject {
         close()
         openDisplayID = displayID
         showsAllApps = catalog.startShowsAllApps(forDisplay: stableDisplayKey(displayID))
+        scale = catalog.startMenuScale(forDisplay: stableDisplayKey(displayID))
         size = clamp(catalog.startMenuSize(forDisplay: stableDisplayKey(displayID)), on: screen)
         catalog.rescan()
 
@@ -117,6 +120,16 @@ final class StartMenuController: ObservableObject {
     func toggleAllApps() {
         guard let displayID = openDisplayID else { return }
         setShowsAllApps(!showsAllApps, forDisplay: displayID)
+    }
+
+    func saveScale() {
+        guard let key = displayKey else { return }
+        catalog.setStartMenuScale(scale, forDisplay: key)
+    }
+
+    func resetScale(forDisplay displayID: CGDirectDisplayID) {
+        catalog.setStartMenuScale(nil, forDisplay: stableDisplayKey(displayID))
+        if openDisplayID == displayID { scale = StartMenuScale.standard }
     }
 
     func saveSize() {

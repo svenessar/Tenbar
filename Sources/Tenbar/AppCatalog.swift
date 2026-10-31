@@ -77,6 +77,14 @@ final class AppCatalog: ObservableObject {
         preferences.setStartMenuSize(size, forDisplay: key)
     }
 
+    func startMenuScale(forDisplay key: String) -> Double {
+        preferences.startMenuScale(forDisplay: key)
+    }
+
+    func setStartMenuScale(_ scale: Double?, forDisplay key: String) {
+        preferences.setStartMenuScale(scale, forDisplay: key)
+    }
+
     func startShowsAllApps(forDisplay key: String) -> Bool {
         preferences.startShowsAllApps(forDisplay: key)
     }

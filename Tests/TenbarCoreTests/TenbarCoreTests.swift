@@ -322,6 +322,19 @@ import Testing
         #expect(prefs.startShowsAllApps(forDisplay: "A"))
     }
 
+    @Test func scaleIsPersistedPerDisplayAndClamped() {
+        let defaults = UserDefaults(suiteName: "TenbarTests-\(UUID())")!
+        let prefs = Preferences(defaults: defaults)
+        #expect(prefs.startMenuScale(forDisplay: "A") == StartMenuScale.standard)
+        prefs.setStartMenuScale(1.4, forDisplay: "A")
+        #expect(prefs.startMenuScale(forDisplay: "A") == 1.4)
+        #expect(prefs.startMenuScale(forDisplay: "B") == StartMenuScale.standard)
+        prefs.setStartMenuScale(9, forDisplay: "B")
+        #expect(prefs.startMenuScale(forDisplay: "B") == StartMenuScale.range.upperBound)
+        prefs.setStartMenuScale(nil, forDisplay: "A")
+        #expect(prefs.startMenuScale(forDisplay: "A") == StartMenuScale.standard)
+    }
+
     @Test func onlySessionEndingActionsSkipReopen() {
         #expect(PowerAction.allCases.filter(\.endsSession) == [.logOut, .restart, .shutDown])
     }
