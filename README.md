@@ -52,6 +52,12 @@ swift test         # Tests
 ./build.sh         # dist/Tenbar.app (Universal) + dist/Tenbar-<Version>.zip
 ```
 
+Installieren bzw. eine laufende Version ersetzen:
+
+```sh
+osascript -e 'quit app "Tenbar"'; rm -rf /Applications/Tenbar.app && cp -R dist/Tenbar.app /Applications/ && open /Applications/Tenbar.app
+```
+
 `build.sh` signiert ad hoc. Mit `SIGN_IDENTITY="Developer ID Application: …" ./build.sh` wird stattdessen mit einem eigenen Zertifikat signiert.
 
 ## Berechtigungen
@@ -66,6 +72,6 @@ swift test         # Tests
 - Einstellungsfenster (Taskleiste pro Bildschirm, Breiten, Schriftgrößen)
 - „Zuletzt verwendet“ im Startmenü
 
+## Lizenz
 
-##erstelle der App
-osascript -e 'quit app "Tenbar"'; rm -rf /Applications/Tenbar.app && cp -R ~/Documents/Tenbar/dist/Tenbar.app /Applications/ && open /Applications/Tenbar.app
+[PolyForm Noncommercial 1.0.0](LICENSE.md): Nutzen, Ändern und Weitergeben für private, nicht kommerzielle Zwecke ist erlaubt. Kommerzielle Nutzung ist nicht gestattet.
