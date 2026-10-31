@@ -101,7 +101,6 @@ struct StartMenuView: View {
                 menu.toggleAllApps()
             }
             Spacer()
-            railButton("person.crop.circle", help: NSFullUserName()) {}
             railButton("power", help: "Ein/Aus") { showPowerMenu() }
         }
         .padding(.vertical, 6)

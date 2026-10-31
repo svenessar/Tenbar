@@ -65,3 +65,7 @@ swift test         # Tests
 - Option „Gruppieren, wenn die Taskleiste voll ist“
 - Einstellungsfenster (Taskleiste pro Bildschirm, Breiten, Schriftgrößen)
 - „Zuletzt verwendet“ im Startmenü
+
+
+##erstelle der App
+osascript -e 'quit app "Tenbar"'; rm -rf /Applications/Tenbar.app && cp -R ~/Documents/Tenbar/dist/Tenbar.app /Applications/ && open /Applications/Tenbar.app
