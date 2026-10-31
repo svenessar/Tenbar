@@ -322,7 +322,7 @@ struct StartMenuView: View {
                 HStack(spacing: 6) {
                     Text(group.name.isEmpty ? "Gruppe benennen" : group.name)
                         .font(.system(size: s(12), weight: .semibold))
-                        .foregroundStyle(group.name.isEmpty ? .white.opacity(0.4) : .white.opacity(0.94))
+                        .foregroundStyle(group.name.isEmpty ? .white.opacity(0.15) : .white.opacity(0.94))
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     Image(systemName: "line.3.horizontal").font(.system(size: s(10))).foregroundStyle(.white.opacity(0.35))
@@ -352,8 +352,10 @@ struct StartMenuView: View {
             .frame(height: s(44))
             .overlay {
                 Text("Hierher ziehen für eine neue Gruppe")
-                    .font(.system(size: s(10))).foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: s(10))).foregroundStyle(.white.opacity(dropOnNewGroup ? 0.8 : 0.4))
             }
+            // Barely visible until something is dragged over it.
+            .opacity(dropOnNewGroup ? 1 : 0.3)
             .dropDestination(for: String.self) { keys, _ in
                 guard let source = keys.first else { return false }
                 draggedGroup = nil
