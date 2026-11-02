@@ -600,3 +600,22 @@ import Testing
         #expect(requests.place(windows: [(5, "y", "B")], now: start.addingTimeInterval(30)).isEmpty)
     }
 }
+
+@Suite struct FullScreenDetectionTests {
+    let screens = [CGRect(x: 0, y: 0, width: 1920, height: 1080), CGRect(x: 1920, y: 0, width: 2560, height: 1440)]
+
+    @Test func detectsTopWindowCoveringScreen() {
+        let windows = [CGRect(x: 1920, y: 0, width: 2560, height: 1440), CGRect(x: 100, y: 100, width: 800, height: 600)]
+        #expect(ScreenGeometry.fullScreenIndices(screens: screens, windows: windows) == [1])
+    }
+
+    @Test func ignoresCoveringWindowBehindSmallerOne() {
+        let windows = [CGRect(x: 100, y: 100, width: 800, height: 600), CGRect(x: 0, y: 0, width: 1920, height: 1080)]
+        #expect(ScreenGeometry.fullScreenIndices(screens: screens, windows: windows).isEmpty)
+    }
+
+    @Test func maximizedWindowBelowMenuBarIsNotFullScreen() {
+        let windows = [CGRect(x: 0, y: 25, width: 1920, height: 1055)]
+        #expect(ScreenGeometry.fullScreenIndices(screens: screens, windows: windows).isEmpty)
+    }
+}

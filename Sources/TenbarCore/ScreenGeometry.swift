@@ -21,4 +21,15 @@ public enum ScreenGeometry {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         return screens.firstIndex { $0.contains(center) }
     }
+
+    /// Indices of screens whose topmost window (from `windows`, ordered front to back)
+    /// covers the whole screen, i.e. an app is in full screen there.
+    public static func fullScreenIndices(screens: [CGRect], windows: [CGRect], tolerance: CGFloat = 1) -> Set<Int> {
+        var result = Set<Int>()
+        for (index, screen) in screens.enumerated() {
+            guard let top = windows.first(where: { !$0.intersection(screen).isEmpty }) else { continue }
+            if top.insetBy(dx: -tolerance, dy: -tolerance).contains(screen) { result.insert(index) }
+        }
+        return result
+    }
 }
