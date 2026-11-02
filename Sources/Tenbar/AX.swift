@@ -67,6 +67,14 @@ enum AX {
         let subrole = string(element, kAXSubroleAttribute)
         return subrole == kAXStandardWindowSubrole || subrole == kAXDialogSubrole
     }
+
+    /// Windows outside the taskbar list that Tenbar still keeps above the bar (e.g. floating call windows).
+    static func keepsAboveBar(_ element: AXUIElement) -> Bool {
+        guard string(element, kAXRoleAttribute) == kAXWindowRole else { return false }
+        let subrole = string(element, kAXSubroleAttribute)
+        return subrole == kAXFloatingWindowSubrole || subrole == kAXSystemDialogSubrole
+            || subrole == kAXSystemFloatingWindowSubrole
+    }
 }
 
 /// Lets AXUIElements be used as dictionary keys (CFEqual/CFHash identity).

@@ -104,6 +104,7 @@ struct TaskbarView: View {
             ForEach(CombineMode.allCases) { Text($0.title).tag($0) }
         }
         Toggle("Beschriftungen anzeigen", isOn: $catalog.showLabels)
+        Toggle("Fenster über der Taskleiste halten", isOn: $tracker.keepWindowsAboveBar)
         Picker("Startmenü-Kacheln", selection: Binding(
             get: { catalog.startLayoutPerDisplay },
             set: { catalog.setStartLayoutPerDisplay($0, from: displayKey) }

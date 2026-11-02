@@ -23,6 +23,20 @@ public enum WindowPlacement {
         let minY = max(visible.minY, screen.minY + barHeight)
         return CGRect(x: visible.minX, y: minY, width: visible.width, height: max(visible.maxY - minY, 0))
     }
+
+    /// Frame that keeps a maximized `window` out of the taskbar: shrunk to end above the bar.
+    /// Only windows reaching from the top of `usable` down behind the bar count as maximized; a window
+    /// the user dragged down (top below the top edge) is left alone. nil if no change is needed, or if
+    /// the window covers the whole `screen` (full screen, the bar is hidden).
+    /// All rects in Cocoa coordinates.
+    public static func fitAboveBar(_ window: CGRect, screen: CGRect, usable: CGRect, tolerance: CGFloat = 1) -> CGRect? {
+        guard !window.insetBy(dx: -tolerance, dy: -tolerance).contains(screen),
+              window.minY < usable.minY - tolerance,
+              window.maxY >= usable.maxY - tolerance,
+              usable.height > 0 else { return nil }
+        let height = min(window.height, usable.height)
+        return CGRect(x: window.minX, y: usable.minY, width: window.width, height: height)
+    }
 }
 
 /// Remembers "this app was opened from display X" and decides which new windows to move there.

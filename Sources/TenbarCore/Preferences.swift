@@ -10,6 +10,7 @@ public struct Preferences {
     private enum Key {
         static let combineMode = "CombineMode"
         static let showLabels = "ShowLabels"
+        static let keepWindowsAboveBar = "KeepWindowsAboveBar"
         static let startMenuSizes = "StartMenuSizes"
         static let startAllAppsHiddenDisplays = "StartAllAppsHiddenDisplays"
         static let startMenuScales = "StartMenuScales"
@@ -64,6 +65,12 @@ public struct Preferences {
     public var showLabels: Bool {
         get { defaults.object(forKey: Key.showLabels) as? Bool ?? true }
         nonmutating set { defaults.set(newValue, forKey: Key.showLabels) }
+    }
+
+    /// Move and shrink windows so they don't reach behind the taskbar. Defaults to true.
+    public var keepWindowsAboveBar: Bool {
+        get { defaults.object(forKey: Key.keepWindowsAboveBar) as? Bool ?? true }
+        nonmutating set { defaults.set(newValue, forKey: Key.keepWindowsAboveBar) }
     }
 
     /// Grouped start tiles. nil means never saved (migrate from `pins(.start)`).

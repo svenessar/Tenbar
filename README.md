@@ -8,6 +8,7 @@ Native macOS-Taskleiste mit Startmenü im Stil von Windows 10. Neuaufbau als Swi
 
 - Eine Taskleiste pro Bildschirm. Jedes Fenster erscheint auf dem Bildschirm, auf dem es überwiegend liegt.
 - Vollbild: Auf einem Bildschirm mit einer Vollbild-App (z. B. Remotedesktop) wird die Taskleiste ausgeblendet. Das gilt für macOS-Vollbild und für Fenster, die den ganzen Bildschirm bedecken.
+- Fenster über der Taskleiste halten (standardmäßig an, abschaltbar per Rechtsklick auf Start): macOS kennt keine API, mit der eine App Bildschirmfläche reservieren kann. Reicht ein Fenster vom oberen Rand bis hinter die Taskleiste (z. B. nach dem Maximieren), verkleinert Tenbar es, sodass es über der Leiste endet. Fenster, die man selbst nach unten zieht, bleiben, wo sie sind. Das gilt auch für schwebende Fenster, die nicht in der Taskleiste stehen (z. B. das Anruffenster von Teams). Während die Maustaste gedrückt ist (Ziehen, Größe ändern), wartet Tenbar damit. Fenster fester Größe und Vollbild bleiben unverändert.
 - Gruppierung wie bei Windows 10 (umschaltbar per Rechtsklick auf Start oder eine leere Stelle der Taskleiste):
   - **Immer gruppieren:** eine Symbol-Schaltfläche pro App, angeheftete Apps und ihre Fenster verschmelzen. Bei mehreren Fenstern zeigt ein Zähler die Anzahl, ein Klick öffnet die Fensterliste.
   - **Nie gruppieren:** eine beschriftete Schaltfläche pro Fenster, an der Position der angehefteten App.

@@ -575,6 +575,35 @@ import Testing
         #expect(area == CGRect(x: 0, y: 40, width: 100, height: 55))
     }
 
+    @Test func fitAboveBarShrinksMaximizedWindow() {
+        let screen = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let usable = CGRect(x: 0, y: 46, width: 1000, height: 729)
+        let fitted = WindowPlacement.fitAboveBar(CGRect(x: 0, y: 0, width: 1000, height: 775), screen: screen, usable: usable)
+        #expect(fitted == usable)
+    }
+
+    @Test func fitAboveBarLeavesWindowDraggedDown() {
+        let screen = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let usable = CGRect(x: 0, y: 46, width: 1000, height: 729)
+        #expect(WindowPlacement.fitAboveBar(CGRect(x: 100, y: 20, width: 400, height: 300), screen: screen, usable: usable) == nil)
+        #expect(WindowPlacement.fitAboveBar(CGRect(x: 0, y: -100, width: 1000, height: 850), screen: screen, usable: usable) == nil)
+    }
+
+    @Test func fitAboveBarShrinksFullHeightWindowKeepingWidth() {
+        let screen = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let usable = CGRect(x: 0, y: 46, width: 1000, height: 729)
+        let fitted = WindowPlacement.fitAboveBar(CGRect(x: 200, y: 0, width: 500, height: 775), screen: screen, usable: usable)
+        #expect(fitted == CGRect(x: 200, y: 46, width: 500, height: 729))
+    }
+
+    @Test func fitAboveBarLeavesFittingAndFullScreenWindows() {
+        let screen = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let usable = CGRect(x: 0, y: 46, width: 1000, height: 729)
+        #expect(WindowPlacement.fitAboveBar(CGRect(x: 0, y: 46, width: 500, height: 500), screen: screen, usable: usable) == nil)
+        #expect(WindowPlacement.fitAboveBar(CGRect(x: 0, y: 45.5, width: 500, height: 500), screen: screen, usable: usable) == nil)
+        #expect(WindowPlacement.fitAboveBar(screen, screen: screen, usable: usable) == nil)
+    }
+
     @Test func movesOnlyNewWindowsOfTheApp() {
         var requests = PlacementRequests<Int, String>()
         let start = Date()

@@ -43,6 +43,22 @@ final class WindowTracker: ObservableObject {
     private var placements = PlacementRequests<UUID, CGDirectDisplayID>()
     private var placementTimer: Timer?
     private var frontRequests: [String: (display: CGDirectDisplayID, deadline: Date)] = [:]
+    private let preferences = Preferences()
+    /// Frame a window kept after a failed fit (e.g. fixed size), so it isn't retried until it changes.
+    private var unfittable: [AXElementKey: CGRect] = [:]
+    private var fitRetryPending = false
+
+    @Published var keepWindowsAboveBar: Bool {
+        didSet {
+            preferences.keepWindowsAboveBar = keepWindowsAboveBar
+            unfittable = [:]
+            if keepWindowsAboveBar { scheduleRefresh() }
+        }
+    }
+
+    init() {
+        keepWindowsAboveBar = preferences.keepWindowsAboveBar
+    }
 
     func start() {
         let center = NSWorkspace.shared.notificationCenter
@@ -132,6 +148,7 @@ final class WindowTracker: ObservableObject {
         var discovered: [UUID] = []
         var seenKeys = Set<AXElementKey>()
         var focused: UUID?
+        var fitCandidates: [FitCandidate] = []
 
         for app in apps {
             let pid = app.processIdentifier
@@ -139,24 +156,40 @@ final class WindowTracker: ObservableObject {
             let observer = observer(for: pid, appElement: appElement)
             let focusedElement = pid == activePID ? AX.element(appElement, kAXFocusedWindowAttribute) : nil
 
-            for element in AX.elements(appElement, kAXWindowsAttribute) where AX.isTaskWindow(element) {
+            for element in AX.elements(appElement, kAXWindowsAttribute) {
                 let key = AXElementKey(element: element)
+                guard AX.isTaskWindow(element) else {
+                    // Call windows, palettes etc. aren't in the taskbar but must stay above it too.
+                    if !app.isHidden, AX.keepsAboveBar(element), AX.bool(element, kAXMinimizedAttribute) != true,
+                       let axFrame = AX.frame(element) {
+                        let frame = ScreenGeometry.cocoaRect(fromAccessibility: axFrame, primaryScreenHeight: primaryHeight)
+                        if let index = ScreenGeometry.bestScreenIndex(for: frame, screens: screenFrames) {
+                            fitCandidates.append(FitCandidate(key: key, element: element, frame: frame, screen: screens[index]))
+                        }
+                    }
+                    continue
+                }
                 guard seenKeys.insert(key).inserted else { continue }
                 let id = windowIDs[key] ?? UUID()
                 windowIDs[key] = id
                 if let observer { observeWindow(element, key: key, observer: observer) }
 
-                let displayID = AX.frame(element).flatMap { axRect -> CGDirectDisplayID? in
-                    let rect = ScreenGeometry.cocoaRect(fromAccessibility: axRect, primaryScreenHeight: primaryHeight)
-                    return ScreenGeometry.bestScreenIndex(for: rect, screens: screenFrames).map { screens[$0].displayID }
+                let cocoaFrame = AX.frame(element).map {
+                    ScreenGeometry.cocoaRect(fromAccessibility: $0, primaryScreenHeight: primaryHeight)
                 }
+                let screenIndex = cocoaFrame.flatMap { ScreenGeometry.bestScreenIndex(for: $0, screens: screenFrames) }
+                let displayID = screenIndex.map { screens[$0].displayID }
                 let rawTitle = AX.string(element, kAXTitleAttribute)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 let appName = app.localizedName ?? "App"
+                let isMinimized = AX.bool(element, kAXMinimizedAttribute) ?? false
                 found[id] = TaskWindow(
                     id: id, pid: pid, title: rawTitle.isEmpty ? appName : rawTitle, appName: appName,
-                    bundleID: app.bundleIdentifier, isMinimized: AX.bool(element, kAXMinimizedAttribute) ?? false,
+                    bundleID: app.bundleIdentifier, isMinimized: isMinimized,
                     displayID: displayID, element: element
                 )
+                if !isMinimized, !app.isHidden, let cocoaFrame, let screenIndex {
+                    fitCandidates.append(FitCandidate(key: key, element: element, frame: cocoaFrame, screen: screens[screenIndex]))
+                }
                 discovered.append(id)
                 if let focusedElement, CFEqual(focusedElement, element) { focused = id }
             }
@@ -168,6 +201,47 @@ final class WindowTracker: ObservableObject {
         if newWindows != windows { windows = newWindows }
         if focused != focusedWindowID { focusedWindowID = focused }
         placeNewWindows()
+        fitWindowsAboveBar(fitCandidates, primaryHeight: primaryHeight)
+    }
+
+    // MARK: Keep above the taskbar
+
+    /// macOS has no API to reserve screen space, so windows reaching behind the taskbar
+    /// (e.g. after zooming) are moved up and shrunk afterwards.
+    private func fitWindowsAboveBar(_ candidates: [FitCandidate],
+                                    primaryHeight: CGFloat) {
+        guard keepWindowsAboveBar else { return }
+        let live = Set(candidates.map(\.key))
+        unfittable = unfittable.filter { live.contains($0.key) }
+        var needsFit = false
+        for candidate in candidates {
+            let screen = candidate.screen
+            let usable = WindowPlacement.usableArea(screen: screen.frame, visible: screen.visibleFrame, barHeight: Theme.barHeight)
+            guard let fitted = WindowPlacement.fitAboveBar(candidate.frame, screen: screen.frame, usable: usable) else {
+                unfittable[candidate.key] = nil
+                continue
+            }
+            if unfittable[candidate.key] == candidate.frame { continue }
+            // Don't fight the user while a window is being dragged or resized.
+            if NSEvent.pressedMouseButtons & 1 != 0 { needsFit = true; continue }
+            AX.setFrame(candidate.element, ScreenGeometry.cocoaRect(fromAccessibility: fitted, primaryScreenHeight: primaryHeight))
+            let after = AX.frame(candidate.element).map {
+                ScreenGeometry.cocoaRect(fromAccessibility: $0, primaryScreenHeight: primaryHeight)
+            }
+            if let after, WindowPlacement.fitAboveBar(after, screen: screen.frame, usable: usable) != nil {
+                unfittable[candidate.key] = after
+            }
+            uiLog.notice("fit above bar \(String(describing: candidate.frame), privacy: .public) -> \(String(describing: after), privacy: .public)")
+        }
+        if needsFit && !fitRetryPending {
+            fitRetryPending = true
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(250))
+                guard let self else { return }
+                self.fitRetryPending = false
+                self.scheduleRefresh()
+            }
+        }
     }
 
     // MARK: Placement
@@ -272,7 +346,7 @@ final class WindowTracker: ObservableObject {
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         for name in [kAXUIElementDestroyedNotification, kAXTitleChangedNotification,
                      kAXWindowMiniaturizedNotification, kAXWindowDeminiaturizedNotification,
-                     kAXWindowMovedNotification] {
+                     kAXWindowMovedNotification, kAXWindowResizedNotification] {
             AXObserverAddNotification(observer, element, name as CFString, refcon)
         }
     }
@@ -328,6 +402,13 @@ final class WindowTracker: ObservableObject {
     func closeAll(_ windows: [TaskWindow]) {
         for window in windows { close(window) }
     }
+}
+
+private struct FitCandidate {
+    let key: AXElementKey
+    let element: AXUIElement
+    let frame: CGRect
+    let screen: NSScreen
 }
 
 private let axCallback: AXObserverCallback = { _, _, _, refcon in
